@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "HMO-Copy",
+    "slug": "hmocopy",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "hmocopy",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "media.hilo.hearmeoutcopy",
+      "buildNumber": "1",
+      "usesAppleSignIn": false,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Hear Me Out Copy needs microphone access to record and share your voice stories with friends. Your audio recordings are the core feature of our social platform.",
+        "NSCameraUsageDescription": "We need access to your camera to take profile pictures",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Hear Me Out Copy needs gallery permission to pick and upload your profile picture.",
+        "NSUserTrackingUsageDescription": "We need tracking permission to get analytics to improve the user experience."
+      },
+      "appleTeamId": "N8SACG5845"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "@config-plugins/react-native-adjust",
+      "expo-tracking-transparency",
+      "expo-font",
+      "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Hear Me Out Copy would like access to your photos to upload a profile picture and personalize your account."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Hear Me Out Copy needs microphone access to record and share your voice stories with friends. Your audio recordings are the core feature of our social platform."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "578f5970-4857-4402-a180-3e111ad513ab"
+      }
+    },
+    "owner": "jd-hilo",
+    "android": {
+      "versionCode": 43,
+      "permissions": [
+        "com.google.android.gms.permission.AD_ID",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    }
+  }
+}

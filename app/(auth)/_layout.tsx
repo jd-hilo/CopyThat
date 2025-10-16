@@ -1,0 +1,14 @@
+import React from 'react';
+import { Stack } from 'expo-router';
+
+export default function AuthLayout() {
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="sign-in" />
+      <Stack.Screen name="sign-up" />
+      <Stack.Screen name="onboarding-mic" />
+      <Stack.Screen name="onboarding-notifications" />
+      <Stack.Screen name="onboarding-friends" />
+    </Stack>
+  );
+}
