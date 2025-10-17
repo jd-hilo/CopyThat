@@ -355,7 +355,7 @@ export default function SignUpScreen() {
           return;
         }
 
-        const result = await checkExistingUser(formData.email);
+       // const result = await checkExistingUser(formData.email);
 
         // Only send OTP if it hasn't been sent recently
         if (!otpSent || otpTimer === 0) {
@@ -373,17 +373,17 @@ export default function SignUpScreen() {
           setOtpTimer(60);
         }
 
-        if (result.exists && result.hasCompletedProfile) {
-          console.log(
-            'User exists and has completed profile, moving to OTP verification...'
-          );
-        } else if (result.exists && !result.hasCompletedProfile) {
-          console.log(
-            'User exists but profile is incomplete, moving to OTP verification...'
-          );
-        } else {
-          console.log('User does not exist, moving to OTP verification...');
-        }
+        // if (result.exists && result.hasCompletedProfile) {
+        //   console.log(
+        //     'User exists and has completed profile, moving to OTP verification...'
+        //   );
+        // } else if (result.exists && !result.hasCompletedProfile) {
+        //   console.log(
+        //     'User exists but profile is incomplete, moving to OTP verification...'
+        //   );
+        // } else {
+        //   console.log('User does not exist, moving to OTP verification...');
+        // }
 
         // Proceed to OTP step
         console.log('Moving from email to otp step');

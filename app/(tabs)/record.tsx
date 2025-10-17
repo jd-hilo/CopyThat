@@ -11,23 +11,10 @@ import {
   Dimensions,
   Modal,
   ScrollView,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import {
-  X,
-  Mic,
-  Pause,
-  Check,
-  ArrowLeft,
-  ArrowRight,
-  Tag,
-  Lock,
-  Send,
-  Play,
-  FileText,
-} from 'lucide-react-native';
+import { X, Mic, Pause, Check, ArrowLeft, Tag, Lock, Send, Play, FileText } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import Animated, {
@@ -52,7 +39,6 @@ import { mixpanel, trackAudioPosted } from '../_layout';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
-import * as FileSystem from 'expo-file-system';
 import Svg, { Path } from 'react-native-svg';
 import { posthog } from '@/posthog';
 import { useAuth } from '@/contexts/authContext';
@@ -1299,13 +1285,13 @@ export default function RecordScreen() {
         console.log('Adjust audio posted now posting analytics');
         setShowSuccessModal(true);
         trackAudioPosted();
-        posthog.capture('audio_recording_posted', {
-          user: {
-            id: user?.id as string,
-            email: user?.email || '',
-          },
-          timeStamp: new Date().toISOString(),
-        });
+        // posthog.capture('audio_recording_posted', {
+        //   user: {
+        //     id: user?.id as string,
+        //     email: user?.email || '',
+        //   },
+        //   timeStamp: new Date().toISOString(),
+        // });
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }

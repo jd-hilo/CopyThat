@@ -329,10 +329,10 @@ export function AddFriendsModal({ visible, onClose }: AddFriendsModalProps) {
         
         https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`,
       });
-       posthog.capture('user_invited_friends', {
-        user: profile,
-        timeStampt: new Date().toISOString(),
-      });
+      //  posthog.capture('user_invited_friends', {
+      //   user: profile,
+      //   timeStampt: new Date().toISOString(),
+      // });
 
       if (Platform.OS === 'ios') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

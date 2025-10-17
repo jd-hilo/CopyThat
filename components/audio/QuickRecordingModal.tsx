@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,6 @@ import {
   Modal,
   Alert,
   Platform,
-  ActivityIndicator,
-  KeyboardAvoidingView,
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Mic, X, Pause, Play, Square } from 'lucide-react-native';
@@ -17,7 +15,6 @@ import { theme } from '@/constants/theme';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { supabase } from '@/lib/supabase';
-import * as FileSystem from 'expo-file-system';
 import {
   useSharedValue,
   useAnimatedStyle,
@@ -30,7 +27,6 @@ import {
 import { formatDuration } from '@/utils/timeUtils';
 import Animated from 'react-native-reanimated';
 import { transcribeAudioFile } from '@/lib/transcription';
-import { showReactionNotificationModal } from '@/lib/notifications';
 import { posthog } from '@/posthog';
 import { useAuth } from '@/contexts/authContext';
 import { mixpanel } from '@/app/_layout';
@@ -181,12 +177,12 @@ export function QuickRecordingModal({
     console.log('DEBUG: startRecording called');
 
     // Track talk button click event with PostHog
-    posthog.capture('talk_button_clicked', {
-      story_id: storyId,
-      username: username || '',
-      is_reply: !!replyingTo,
-      timeStamp: new Date().toISOString(),
-    });
+    // posthog.capture('talk_button_clicked', {
+    //   story_id: storyId,
+    //   username: username || '',
+    //   is_reply: !!replyingTo,
+    //   timeStamp: new Date().toISOString(),
+    // });
 
     try {
       if (Platform.OS === 'ios') {
@@ -408,18 +404,18 @@ export function QuickRecordingModal({
 
       // Show send animation after submit is complete
       setShowSendAnimation(true);
-      posthog.capture('audio_reaction_submitted', {
-        user: {
-          id: user?.id || '',
-          email: user?.email || '',
-        },
-        story_id: storyId,
-        username: username || '',
-        duration: duration,
-        is_reply: !!replyingTo,
-        reply_to_reaction_id: replyingTo?.reactionId || null,
-        timeStamp: new Date().toISOString(),
-      });
+      // posthog.capture('audio_reaction_submitted', {
+      //   user: {
+      //     id: user?.id || '',
+      //     email: user?.email || '',
+      //   },
+      //   story_id: storyId,
+      //   username: username || '',
+      //   duration: duration,
+      //   is_reply: !!replyingTo,
+      //   reply_to_reaction_id: replyingTo?.reactionId || null,
+      //   timeStamp: new Date().toISOString(),
+      // });
 
       // Increment user points
       const { data: profile, error: profileError } = await supabase

@@ -182,7 +182,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (userProfile) {
       mixpanel.identify(userProfile.id);
-      posthog.identify(userProfile.id, { user: userProfile });
+      //posthog.identify(userProfile.id, { user: userProfile });
     }
     if (id) {
       router.push({ pathname: '/story/[id]', params: { id: id } });
@@ -755,15 +755,15 @@ export default function HomeScreen() {
 
         // Track emoji reaction event with PostHog
         if (!error && userProfile) {
-          posthog.capture('emoji_reaction_added', {
-            user: {
-              id: userProfile.id,
-              username: userProfile.username,
-            },
-            story_id: storyId,
-            emoji_type: emojiType,
-            timeStamp: new Date().toISOString(),
-          });
+          // posthog.capture('emoji_reaction_added', {
+          //   user: {
+          //     id: userProfile.id,
+          //     username: userProfile.username,
+          //   },
+          //   story_id: storyId,
+          //   emoji_type: emojiType,
+          //   timeStamp: new Date().toISOString(),
+          // });
         }
       }
       if (reactionType === 'changed' && story?.userReaction) {
@@ -784,16 +784,16 @@ export default function HomeScreen() {
 
         // Track emoji reaction changed event with PostHog
         if (!error1 && !error && userProfile) {
-          posthog.capture('emoji_reaction_changed', {
-            user: {
-              id: userProfile.id,
-              username: userProfile.username,
-            },
-            story_id: storyId,
-            previous_emoji_type: story.userReaction.emoji_type,
-            new_emoji_type: emojiType,
-            timeStamp: new Date().toISOString(),
-          });
+          // posthog.capture('emoji_reaction_changed', {
+          //   user: {
+          //     id: userProfile.id,
+          //     username: userProfile.username,
+          //   },
+          //   story_id: storyId,
+          //   previous_emoji_type: story.userReaction.emoji_type,
+          //   new_emoji_type: emojiType,
+          //   timeStamp: new Date().toISOString(),
+          // });
         }
       }
 
@@ -811,15 +811,15 @@ export default function HomeScreen() {
 
         // Track emoji reaction removed event with PostHog
         if (!error && userProfile) {
-          posthog.capture('emoji_reaction_removed', {
-            user: {
-              id: userProfile.id,
-              username: userProfile.username,
-            },
-            story_id: storyId,
-            emoji_type: story.userReaction.emoji_type,
-            timeStamp: new Date().toISOString(),
-          });
+          // posthog.capture('emoji_reaction_removed', {
+          //   user: {
+          //     id: userProfile.id,
+          //     username: userProfile.username,
+          //   },
+          //   story_id: storyId,
+          //   emoji_type: story.userReaction.emoji_type,
+          //   timeStamp: new Date().toISOString(),
+          // });
         }
       }
     } catch (error) {

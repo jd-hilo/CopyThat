@@ -7,7 +7,6 @@ import {
   TextInput,
   Alert,
   Dimensions,
-  Text,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -15,9 +14,7 @@ import {
 } from 'react-native';
 import { Typography } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
-import { theme } from '@/constants/theme';
-import { v4 as uuidv4 } from 'uuid';
-import { ChevronLeft, Camera, ArrowUpRight } from 'lucide-react-native';
+import { Camera, ArrowUpRight } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import { posthog } from '@/posthog';
@@ -144,19 +141,19 @@ export const GroupModal: React.FC<GroupModalProps> = ({
       if (memberError) throw memberError;
 
       // Track group creation event with PostHog
-      posthog.capture('group_created', {
-        user: {
-          id: userId,
-          email: (await supabase.auth.getUser()).data.user?.email || '',
-        },
-        group: {
-          id: group.id,
-          name: group.name,
-          has_avatar: !!avatarUrl,
-          is_public: false,
-        },
-        timeStamp: new Date().toISOString(),
-      });
+      // posthog.capture('group_created', {
+      //   user: {
+      //     id: userId,
+      //     email: (await supabase.auth.getUser()).data.user?.email || '',
+      //   },
+      //   group: {
+      //     id: group.id,
+      //     name: group.name,
+      //     has_avatar: !!avatarUrl,
+      //     is_public: false,
+      //   },
+      //   timeStamp: new Date().toISOString(),
+      // });
       mixpanel.track('Group created');
       // Success - no alert, just call onSuccess and close
       onSuccess(group.id);

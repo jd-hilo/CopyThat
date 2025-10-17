@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Modal,
@@ -7,13 +7,11 @@ import {
   TextInput,
   Alert,
   Dimensions,
-  Text,
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Typography } from '@/components/ui/Typography';
-import { theme } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { ArrowUpRight } from 'lucide-react-native';
 import { posthog } from '@/posthog';
@@ -115,18 +113,18 @@ export function JoinGroupModal({
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      posthog.capture('group_joined', {
-        user: {
-          id: user?.id || '',
-          email: user?.email || '',
-        },
-        group: {
-          id: group.id,
-          name: group.name,
-          invite_code: group.invite_code,
-        },
-        timeStamp: new Date().toISOString(),
-      });
+      // posthog.capture('group_joined', {
+      //   user: {
+      //     id: user?.id || '',
+      //     email: user?.email || '',
+      //   },
+      //   group: {
+      //     id: group.id,
+      //     name: group.name,
+      //     invite_code: group.invite_code,
+      //   },
+      //   timeStamp: new Date().toISOString(),
+      // });
 
       // Success - no alert, just close and call onSuccess
       onSuccess(group.id);

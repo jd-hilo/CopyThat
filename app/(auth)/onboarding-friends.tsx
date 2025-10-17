@@ -1,14 +1,10 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { View, StyleSheet, Pressable, Animated, Text } from 'react-native';
 import { Typography } from '@/components/ui';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { supabase } from '@/lib/supabase';
-import { trackInviteSent } from '@/app/_layout';
-import { Share, Platform } from 'react-native';
-import { Adjust, AdjustEvent } from 'react-native-adjust'; 
-import { posthog } from '@/posthog';
+import { Platform } from 'react-native';
 
 const MOCK_GROUPS = [
   {

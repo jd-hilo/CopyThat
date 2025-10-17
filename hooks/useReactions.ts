@@ -494,15 +494,15 @@ export function useReactions(
       if (reactionError) throw reactionError;
 
       // Track emoji reaction event with PostHog
-      posthog.capture('emoji_reaction_added', {
-        user: {
-          id: session.user.id,
-          email: session.user.email || '',
-        },
-        story_id: storyId,
-        emoji_type: emojiType,
-        timeStamp: new Date().toISOString(),
-      });
+      // posthog.capture('emoji_reaction_added', {
+      //   user: {
+      //     id: session.user.id,
+      //     email: session.user.email || '',
+      //   },
+      //   story_id: storyId,
+      //   emoji_type: emojiType,
+      //   timeStamp: new Date().toISOString(),
+      // });
 
       // Refresh to get actual data from server
       await fetchReactions();
