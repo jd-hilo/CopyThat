@@ -329,7 +329,7 @@ export default function ProfileScreen() {
 
   const handleGiveFeedback = () => {
     const email = 'jd@hilo.media';
-    const subject = 'Feedback for Hear Me Out';
+    const subject = 'Feedback for Hear Me Out Copy';
     const body = 'Hi,\n\nI have some feedback about the app:\n\n';
 
     const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(

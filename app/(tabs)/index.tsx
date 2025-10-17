@@ -881,7 +881,7 @@ export default function HomeScreen() {
 
   const handleShareGroupInvite = async (group: Group) => {
     try {
-      const message = `join my group "${group.name}" on hear me out! use invite code: ${group.invite_code}
+      const message = `join my group "${group.name}" on hear me out Copy! use invite code: ${group.invite_code}
 
 https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
 

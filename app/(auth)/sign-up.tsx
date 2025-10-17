@@ -770,7 +770,7 @@ export default function SignUpScreen() {
                 choose your username
               </Typography>
               <Typography variant="body" style={styles.stepSubtitle}>
-                this is your hear me out codename
+                this is your hear me out Copy codename
               </Typography>
               <View style={styles.inputContainer}>
                 <TextInput

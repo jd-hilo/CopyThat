@@ -62,7 +62,7 @@ export default function OnboardingMicScreen() {
           <View style={styles.mockTop}>
             <View style={styles.mockContent}>
               <Typography variant="h3" style={styles.mockTitle}>
-                "Hear Me Out" Would Like to Access Your Microphone
+                "Hear Me Out Copy" Would Like to Access Your Microphone
               </Typography>
               <Typography variant="body" style={styles.mockDescription}>
                 We need access to your mic so you can speak your mind and share your voice with friends.

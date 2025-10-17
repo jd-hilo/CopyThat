@@ -165,7 +165,7 @@ export default function OnBoarding({
                 choose your username
               </Typography>
               <Typography variant="body" style={styles.stepSubtitle}>
-                this is your hear me out codename
+                this is your hear me out Copy codename
               </Typography>
               <View style={styles.inputContainer}>
                 <TextInput

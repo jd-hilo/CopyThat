@@ -325,7 +325,7 @@ export function AddFriendsModal({ visible, onClose }: AddFriendsModalProps) {
       if (!profile) return;
 
       await Share.share({
-        message: `join me on hear me out, username is ${profile.username} 
+        message: `join me on hear me out Copy, username is ${profile.username} 
         
         https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`,
       });

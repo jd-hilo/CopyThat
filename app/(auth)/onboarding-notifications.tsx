@@ -40,7 +40,7 @@ export default function OnboardingNotificationsScreen() {
           <View style={styles.mockTop}>
             <View style={styles.mockContent}>
               <Typography variant="h3" style={styles.mockTitle}>
-                "Hear Me Out" Would Like to Send You Notifications
+                "Hear Me Out Copy" Would Like to Send You Notifications
               </Typography>
               <Typography variant="body" style={styles.mockDescription}>
                 Notifications may include alerts, sounds, and icon badges. These can be configured in Settings.
