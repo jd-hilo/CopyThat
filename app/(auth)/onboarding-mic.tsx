@@ -1,47 +1,42 @@
-import React from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Typography } from '@/components/ui';
 import { router } from 'expo-router';
-import { Audio } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { trackPermissionsGranted } from '../_layout';
+import { VoiceCloningModal } from '@/components/audio/VoiceCloningModal';
+import { supabase } from '@/lib/supabase';
 
 export default function OnboardingMicScreen() {
-  const handleMockAllow = async () => {
-    try {
-      // Configure audio mode first
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-      });
+  const [showModal, setShowModal] = useState(true);
+  const [userId, setUserId] = useState<string>('');
+  const [username, setUsername] = useState<string>('');
 
-      // Create a temporary recording to force permission prompt
-      const recording = new Audio.Recording();
-      try {
-        await recording.prepareToRecordAsync(
-          Audio.RecordingOptionsPresets.HIGH_QUALITY
-        );
-        await recording.stopAndUnloadAsync();
-      } catch (error) {
-        // Expected error when permissions aren't granted
+  useEffect(() => {
+    const getUserInfo = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .single();
+        if (profile) {
+          setUsername(profile.username);
+        }
       }
+    };
+    getUserInfo();
+  }, []);
 
-      // Now request permissions explicitly
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status === 'granted') {
-        trackPermissionsGranted();
-      }
-      router.push('/onboarding-notifications');
-    } catch (error) {
-      console.error('Error requesting microphone permission:', error);
-      router.push('/onboarding-notifications');
-    }
+  const handleSuccess = (voiceId: string) => {
+    console.log('Voice clone created:', voiceId);
+    setShowModal(false);
+    router.push('/onboarding-notifications');
   };
 
-  const handleSkip = () => {
+  const handleClose = () => {
+    setShowModal(false);
     router.push('/onboarding-notifications');
   };
 
@@ -49,37 +44,29 @@ export default function OnboardingMicScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.textContainer}>
-          <Typography variant="h3" style={styles.title}>
-            microphone access?
+          <Typography variant="h2" style={styles.title}>
+            record your voice 🎤
           </Typography>
-          <Typography variant="h2" style={styles.subtitle}>
-            our app will suck{'\n'}without it.
+          <Typography variant="body" style={styles.subtitle}>
+            clone your voice to use in the app
           </Typography>
         </View>
 
-        {/* Mock Permission UI */}
-        <View style={styles.mockPopover}>
-          <View style={styles.mockTop}>
-            <View style={styles.mockContent}>
-              <Typography variant="h3" style={styles.mockTitle}>
-                "Hear Me Out Copy" Would Like to Access Your Microphone
-              </Typography>
-              <Typography variant="body" style={styles.mockDescription}>
-                We need access to your mic so you can speak your mind and share your voice with friends.
-              </Typography>
-            </View>
-          </View>
-          <View style={styles.mockBottomAction}>
-            <Pressable style={styles.mockAction} onPress={handleSkip}>
-              <Typography variant="body" style={styles.mockActionLabel}>Don't Allow</Typography>
-            </Pressable>
-            <View style={styles.mockSeparatorVertical} />
-            <Pressable style={styles.mockAction} onPress={handleMockAllow}>
-              <Typography variant="bodyBold" style={[styles.mockActionLabel, styles.mockActionLabelBold]}>Continue</Typography>
-            </Pressable>
-          </View>
-          <View style={styles.mockSeparatorHorizontal} />
-        </View>
+        {userId && username && (
+          <VoiceCloningModal
+            visible={showModal}
+            onClose={handleClose}
+            userId={userId}
+            username={username}
+            onSuccess={handleSuccess}
+          />
+        )}
+
+        <TouchableOpacity style={styles.skipButton} onPress={handleClose}>
+          <Typography variant="body" style={styles.skipButtonText}>
+            skip for now
+          </Typography>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -93,113 +80,41 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 20,
-    position: 'relative',
   },
   textContainer: {
-    marginTop: 60,
+    marginBottom: 40,
     width: '100%',
     alignItems: 'center',
   },
   title: {
-    fontFamily: 'Nunito',
-    fontWeight: '800',
-    fontSize: 16,
-    lineHeight: 22,
+    fontFamily: 'Nunito-Bold',
+    fontWeight: '700',
+    fontSize: 28,
     textAlign: 'center',
-    color: '#007AFF',
+    color: '#333A3C',
     marginBottom: 12,
+    textTransform: 'lowercase',
   },
   subtitle: {
     fontFamily: 'Nunito',
-    fontWeight: '700',
-    fontSize: 26,
-    lineHeight: 35,
+    fontSize: 16,
     textAlign: 'center',
-    color: '#000000',
+    color: '#8A8E8F',
+    textTransform: 'lowercase',
   },
-  mockPopover: {
-    width: 270,
-    height: 220,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 5,
+  skipButton: {
     position: 'absolute',
-    top: '40%',
-    alignSelf: 'center',
+    bottom: 40,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
   },
-  mockTop: {
-    height: 176,
-    padding: 20,
-    paddingHorizontal: 16,
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-  },
-  mockContent: {
-    gap: 2,
-    alignItems: 'center',
-  },
-  mockTitle: {
-    width: 238,
+  skipButtonText: {
+    fontSize: 16,
     fontFamily: 'Nunito',
-    fontSize: 17,
-    lineHeight: 22,
+    color: '#8A8E8F',
     textAlign: 'center',
-    letterSpacing: -0.408,
-    color: '#000000',
-    fontWeight: '700',
-  },
-  mockDescription: {
-    width: 238,
-    fontFamily: 'Nunito',
-    fontSize: 13,
-    lineHeight: 18,
-    textAlign: 'center',
-    letterSpacing: -0.078,
-    color: '#000000',
-    fontWeight: '400',
-    marginTop: 2,
-  },
-  mockBottomAction: {
-    flexDirection: 'row',
-    height: 44,
-    alignItems: 'center',
-  },
-  mockAction: {
-    flex: 1,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mockActionLabel: {
-    fontFamily: 'SF Pro Text',
-    fontSize: 17,
-    lineHeight: 22,
-    textAlign: 'center',
-    letterSpacing: -0.408,
-    color: '#007AFF',
-  },
-  mockActionLabelBold: {
-    fontWeight: '600',
-  },
-  mockSeparatorHorizontal: {
-    height: 0.5,
-    backgroundColor: 'rgba(0, 0, 0, 0.24)',
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 44,
-  },
-  mockSeparatorVertical: {
-    width: 0.5,
-    height: 44,
-    backgroundColor: 'rgba(0, 0, 0, 0.24)',
+    textTransform: 'lowercase',
   },
 }); 

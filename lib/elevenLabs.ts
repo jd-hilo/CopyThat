@@ -207,7 +207,7 @@ export async function voiceChanger(
 
     console.log('Voice changer - Got response, saving audio');
 
-    // Save audio to file
+    // ElevenLabs returns MP3 format - save as mp3
     const responseAudioBlob = await response.blob();
     const outputUri = `${FileSystem.documentDirectory}voice_changed_${Date.now()}.mp3`;
     
@@ -226,7 +226,7 @@ export async function voiceChanger(
       encoding: FileSystem.EncodingType.Base64,
     });
 
-    console.log('Voice changer - Audio saved:', outputUri);
+    console.log('Voice changer - Audio saved as mp3:', outputUri);
 
     return {
       success: true,

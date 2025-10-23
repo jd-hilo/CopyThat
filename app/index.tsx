@@ -21,18 +21,26 @@ import { useAuth } from '@/contexts/authContext';
 
 // test1234
 const { width: screenWidth } = Dimensions.get('window');
-const images = [
-  require('../assets/images/Frame 1 HMO.png'),
-  require('../assets/images/Frame 2 HMO.png'),
-  require('../assets/images/Frame 4 HMO.png'),
-  require('../assets/images/Frame 3 HMO.png'),
-];
 
-const slideTexts = [
-  'welcome to the show 👋',
-  "say what you're thinking",
-  'join your campus circle',
-  'join groups with friends',
+const slides = [
+  {
+    step: 'step 1',
+    title: 'clone your voice',
+    icon: '🎤',
+    description: 'record your unique voice to use in the app',
+  },
+  {
+    step: 'step 2',
+    title: 'invite your friends',
+    icon: '👥',
+    description: 'share thoughts with your closest circle',
+  },
+  {
+    step: 'step 3',
+    title: 'copy voices and talk!',
+    icon: '🎧',
+    description: 'start sharing your hear me out moments',
+  },
 ];
 
 export default function WelcomeScreen() {
@@ -41,26 +49,11 @@ export default function WelcomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const { user, userProfile, setUserProfile, setUser } = useAuth();
-  // Handle scroll end to create infinite effect
+  // Handle scroll to update current slide indicator
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
     const currentIndex = Math.round(contentOffsetX / screenWidth);
-
-    if (currentIndex === images.length) {
-      // When we reach the last image (which is a duplicate of the first),
-      // quickly scroll back to the first image without animation
-      scrollViewRef.current?.scrollTo({ x: 0, animated: false });
-      setCurrentSlide(0);
-    } else if (currentIndex === -1) {
-      // When scrolling left from the first image
-      scrollViewRef.current?.scrollTo({
-        x: (images.length - 1) * screenWidth,
-        animated: false,
-      });
-      setCurrentSlide(images.length - 1);
-    } else {
-      setCurrentSlide(currentIndex);
-    }
+    setCurrentSlide(Math.max(0, Math.min(currentIndex, slides.length - 1)));
   };
 
   useEffect(() => {
@@ -138,25 +131,29 @@ export default function WelcomeScreen() {
           onMomentumScrollEnd={handleScroll}
           decelerationRate="fast"
         >
-          {[...images, images[0]].map((image, index) => (
-            <Image
-              key={index}
-              source={image}
-              style={[
-                styles.slideImage,
-                index === 1
-                  ? { marginLeft: 5 }
-                  : index === 2
-                  ? { marginLeft: 5 }
-                  : null,
-              ]}
-            />
+          {slides.map((slide, index) => (
+            <View key={index} style={styles.slideContainer}>
+              <View style={styles.slideContent}>
+                <Typography variant="body" style={styles.stepLabel}>
+                  {slide.step}
+                </Typography>
+                <Typography variant="h1" style={styles.slideIcon}>
+                  {slide.icon}
+                </Typography>
+                <Typography variant="h2" style={styles.slideTitle}>
+                  {slide.title}
+                </Typography>
+                <Typography variant="body" style={styles.slideDescription}>
+                  {slide.description}
+                </Typography>
+              </View>
+            </View>
           ))}
         </ScrollView>
 
         {/* Progress bar */}
         <View style={styles.progressBarContainer}>
-          {images.map((_, index) => (
+          {slides.map((_, index) => (
             <View
               key={index}
               style={[
@@ -165,13 +162,6 @@ export default function WelcomeScreen() {
               ]}
             />
           ))}
-        </View>
-
-        {/* Slide text display */}
-        <View style={styles.slideTextContainer}>
-          <Typography variant="h3" style={styles.slideText}>
-            {slideTexts[currentSlide]}
-          </Typography>
         </View>
       </View>
 
@@ -223,18 +213,6 @@ const styles = StyleSheet.create({
     height: '60%',
     marginTop: '10%',
   },
-  slideTextContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    marginTop: 16,
-    marginBottom: 32,
-  },
-  slideText: {
-    fontSize: 20,
-    color: '#000000',
-    textAlign: 'center',
-    fontFamily: 'Nunito-Bold',
-  },
   progressBarContainer: {
     display: 'flex',
     flexDirection: 'row',
@@ -270,10 +248,46 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     alignItems: 'center',
   },
-  slideImage: {
+  slideContainer: {
     width: screenWidth,
     height: '100%',
-    resizeMode: 'contain',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  slideContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepLabel: {
+    fontSize: 14,
+    color: '#8A8E8F',
+    textAlign: 'center',
+    fontFamily: 'Nunito-SemiBold',
+    textTransform: 'lowercase',
+    marginBottom: 16,
+  },
+  slideIcon: {
+    fontSize: 80,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  slideTitle: {
+    fontSize: 32,
+    color: '#333A3C',
+    textAlign: 'center',
+    fontFamily: 'Nunito-Bold',
+    fontWeight: '700',
+    textTransform: 'lowercase',
+    marginBottom: 12,
+  },
+  slideDescription: {
+    fontSize: 16,
+    color: '#8A8E8F',
+    textAlign: 'center',
+    fontFamily: 'Nunito',
+    textTransform: 'lowercase',
+    lineHeight: 24,
   },
   content: {
     flex: 1,

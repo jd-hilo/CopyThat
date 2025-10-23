@@ -83,6 +83,7 @@ interface EmojiReactionCount {
 
 interface StoryWithUser extends Story {
   user: Profile;
+  cloned_voice_user?: Profile | null;
   is_group_story: boolean;
   group_stories?: {
     group: {
@@ -109,6 +110,7 @@ interface FormattedStory {
   reactionCount: number;
   likeCount: number;
   isLiked: boolean;
+  creatorId?: string; // The actual user who created the story (for ownership checks)
   user: {
     id: string;
     name: string;
@@ -158,7 +160,7 @@ export default function HomeScreen() {
   const scrollRef = useRef<FlatList>(null);
   const savedOffsetRef = useRef(0);
   const itemPositionsRef = useRef<Record<string, number>>({});
-  const { user, userProfile: userProfileContext } = useAuth();
+  const { user, userProfile: userProfileContext, signOut } = useAuth();
   const currentStoryRef = useRef<FormattedStory | null>(null);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showJoinGroupModal, setShowJoinGroupModal] = useState(false);
@@ -184,11 +186,24 @@ export default function HomeScreen() {
     }
   }, [currentlyPlayingId]);
   useEffect(() => {
+    const checkVoiceCloneStatus = async () => {
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('voice_clone_status')
+          .eq('id', user.id)
+          .single();
+        
+        console.log('Voice clone status check:', profile?.voice_clone_status);
+        setUserHasVoiceClone(profile?.voice_clone_status === 'ready');
+      }
+    };
+
     if (userProfile) {
       mixpanel.identify(userProfile.id);
       //posthog.identify(userProfile.id, { user: userProfile });
-      // Check voice clone status from profile
-      setUserHasVoiceClone(userProfile.voice_clone_status === 'ready');
+      // Check voice clone status from database (not cached profile)
+      checkVoiceCloneStatus();
     }
     if (id) {
       router.push({ pathname: '/story/[id]', params: { id: id } });
@@ -198,7 +213,7 @@ export default function HomeScreen() {
         setCompleteProfileModal(true);
       }
     }
-  }, [userProfile]);
+  }, [userProfile, user]);
 
   // Handle feed parameter and auto-refresh
   useEffect(() => {
@@ -353,34 +368,40 @@ export default function HomeScreen() {
     }
   };
 
-  const formatStory = (story: StoryWithUser): FormattedStory => ({
-    id: story.id,
-    title: story.title,
-    description: story.description || undefined,
-    transcription: story.transcription || undefined,
-    audioUrl: story.audio_url,
-    duration: story.duration,
-    createdAt: story.created_at,
-    createdAtMs: new Date(story.created_at).getTime(),
-    category: story.category as Category,
-    isPrivate: story.is_private || false,
-    isFriendsOnly: story.is_friends_only || false,
-    isGroupStory: story.is_group_story || false,
-    reactionCount: story.reaction_count || 0,
-    likeCount: story.like_count || 0,
-    isLiked: false,
-    user: {
-      id: story.user.id,
-      name: story.user.full_name || story.user.username,
-      username: story.user.username,
-      profileImage: story.user.avatar_url || 'https://via.placeholder.com/150',
-      college: story.user.college,
-      friend_count: story.user.friend_count || 0,
-      friend_request_count: story.user.friend_request_count || 0,
-      points: story.user.points || 0,
-    },
-    group: story.group_stories?.[0]?.group || null,
-  });
+  const formatStory = (story: StoryWithUser): FormattedStory => {
+    // Use cloned voice user's info if voice was cloned, otherwise use original poster
+    const displayUser = story.cloned_voice_user || story.user;
+    
+    return {
+      id: story.id,
+      title: story.title,
+      description: story.description || undefined,
+      transcription: story.transcription || undefined,
+      audioUrl: story.audio_url,
+      duration: story.duration,
+      createdAt: story.created_at,
+      createdAtMs: new Date(story.created_at).getTime(),
+      category: story.category as Category,
+      isPrivate: story.is_private || false,
+      isFriendsOnly: story.is_friends_only || false,
+      isGroupStory: story.is_group_story || false,
+      reactionCount: story.reaction_count || 0,
+      likeCount: story.like_count || 0,
+      isLiked: false,
+      creatorId: story.user_id, // Always use the actual creator's ID for ownership checks
+      user: {
+        id: displayUser.id,
+        name: displayUser.full_name || displayUser.username,
+        username: displayUser.username,
+        profileImage: displayUser.avatar_url || 'https://via.placeholder.com/150',
+        college: displayUser.college,
+        friend_count: displayUser.friend_count || 0,
+        friend_request_count: displayUser.friend_request_count || 0,
+        points: displayUser.points || 0,
+      },
+      group: story.group_stories?.[0]?.group || null,
+    };
+  };
 
   const sortStories = (isHot: boolean) => {
     console.log('Sorting stories, isHot:', isHot); // Debug log
@@ -483,7 +504,10 @@ export default function HomeScreen() {
         transcription,
         created_at,
         updated_at,
+        is_voice_cloned,
+        cloned_voice_user_id,
         user:profiles!user_id(*),
+        cloned_voice_user:profiles!cloned_voice_user_id(*),
         group_stories (
           group:groups (
             id,
@@ -519,8 +543,10 @@ export default function HomeScreen() {
       } else if (isCollegeFeed) {
         console.log('fetch thoughts 6 - groups only mode');
         // In groups-only mode, don't show any stories in college feed
-        // This will result in an empty state
-        query = query.eq('is_friends_only', false).eq('is_private', false).eq('user_id', 'non-existent-user');
+        // Return early with empty array
+        setThoughts([]);
+        setLoading(false);
+        return;
       } else {
         // In friends feed, show:
         // 1. Your own stories that are friends-only
@@ -913,6 +939,19 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
     setIsFabExpanded(false);
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      // Small delay to ensure sign out completes
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Force navigation to sign up page
+      router.replace('/(auth)/sign-up');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      Alert.alert('Error', 'Failed to sign out. Please try again.');
+    }
+  };
+
   const handleLeaveGroup = () => {
     if (selectedGroupId && userGroups.length > 0) {
       const selectedGroup = userGroups.find((g) => g.id === selectedGroupId);
@@ -1255,10 +1294,10 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
           >
             be the first to share a thought!
           </Typography>
-          <TouchableOpacity
-            style={styles.recordNowButton}
-            onPress={() => router.push('/(tabs)/record')}
-          >
+            <TouchableOpacity
+              style={styles.recordNowButton}
+              onPress={() => router.push('/record')}
+            >
             <Typography variant="h2" style={styles.recordNowButtonText}>
               record now 🎙️
             </Typography>
@@ -1393,20 +1432,33 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientBorder}
                   >
-                    <TouchableOpacity
-                      style={styles.inviteButton}
-                      onPress={() => setShowVoiceCloningModal(true)}
-                    >
-                      <Typography variant="h2" style={styles.inviteText}>
-                        🎙️ record voice
-                      </Typography>
-                    </TouchableOpacity>
-                  </LinearGradient>
-                </View>
+                  <TouchableOpacity
+                    style={styles.inviteButton}
+                    onPress={() => setShowVoiceCloningModal(true)}
+                  >
+                    <Typography variant="h2" style={styles.inviteText}>
+                      🎙️ record voice
+                    </Typography>
+                  </TouchableOpacity>
+                </LinearGradient>
+              </View>
+
+              {/* Sign Out Button */}
+              <View style={styles.signOutButtonContainer}>
+                <TouchableOpacity
+                  style={styles.signOutButton}
+                  onPress={handleSignOut}
+                >
+                  <LogOut size={20} color="#FF3B30" />
+                  <Typography variant="body" style={styles.signOutText}>
+                    sign out
+                  </Typography>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
-        ) : (
+        </View>
+      ) : (
           <>
             <View style={styles.header}>
               <View style={styles.headerTop}>
@@ -1487,15 +1539,17 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
               </View>
             )}
 
-            {/* Record Button FAB - Bottom Left */}
-            <View style={styles.recordFabContainer}>
-              <TouchableOpacity
-                style={styles.fabButton}
-                onPress={() => router.push('/(tabs)/record')}
-              >
-                <Mic size={24} color="#000000" />
-              </TouchableOpacity>
-            </View>
+            {/* Record Button FAB - Bottom Left - Only show in group feed */}
+            {selectedGroupId && !isCollegeFeed && (
+              <View style={styles.recordFabContainer}>
+                <TouchableOpacity
+                  style={styles.fabButton}
+                  onPress={() => router.push('/record')}
+                >
+                  <Mic size={24} color="#000000" />
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Group Actions FAB */}
             {selectedGroupId && !isCollegeFeed && (
@@ -2175,6 +2229,28 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     color: '#FFFFFF',
     textAlign: 'center',
+  },
+  signOutButtonContainer: {
+    width: 244,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFE4E4',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  signOutText: {
+    fontFamily: 'Nunito',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF3B30',
+    textTransform: 'lowercase',
   },
   recordFabContainer: {
     position: 'absolute',

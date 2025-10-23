@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "HMO-Copy",
-    "slug": "hmocopy",
+    "name": "Copy That",
+    "slug": "copythat",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "hmocopy",
+    "scheme": "copythat",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/logo.png",
@@ -19,10 +19,10 @@
       "buildNumber": "1",
       "usesAppleSignIn": false,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Hear Me Out Copy needs microphone access to record and share your voice stories with friends. Your audio recordings are the core feature of our social platform.",
+        "NSMicrophoneUsageDescription": "Copy That needs microphone access to record and share your voice stories with friends. Your audio recordings are the core feature of our social platform.",
         "NSCameraUsageDescription": "We need access to your camera to take profile pictures",
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Hear Me Out Copy needs gallery permission to pick and upload your profile picture.",
+        "NSPhotoLibraryUsageDescription": "Copy That needs gallery permission to pick and upload your profile picture.",
         "NSUserTrackingUsageDescription": "We need tracking permission to get analytics to improve the user experience."
       },
       "appleTeamId": "N8SACG5845"
@@ -42,13 +42,13 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Hear Me Out Copy would like access to your photos to upload a profile picture and personalize your account."
+          "photosPermission": "Copy That would like access to your photos to upload a profile picture and personalize your account."
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "Hear Me Out Copy needs microphone access to record and share your voice stories with friends. Your audio recordings are the core feature of our social platform."
+          "microphonePermission": "Copy That needs microphone access to record and share your voice stories with friends. Your audio recordings are the core feature of our social platform."
         }
       ]
     ],

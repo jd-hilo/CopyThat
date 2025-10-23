@@ -30,6 +30,7 @@ import {
   School,
   Pencil,
   Mic,
+  Check,
 } from 'lucide-react-native';
 import { Typography } from '@/components/ui/Typography';
 import { StoryCard } from '@/components/stories/StoryCard';
@@ -198,25 +199,31 @@ export default function ProfileScreen() {
         .select(
           `
           *,
-          user:user_id(*)
+          user:profiles!user_id(*),
+          cloned_voice_user:profiles!cloned_voice_user_id(*)
         `
         )
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      const stories = data?.map((story) => ({
-        ...story,
-        user: {
-          ...story.user,
-          profileImage:
-            story.user.avatar_url ||
-            'https://hilo.supabase.co/storage/v1/object/public/avatars/default.png',
-          college: story.user.college as College | null,
-          friend_count: story.user.friend_count || 0,
-          friend_request_count: story.user.friend_request_count || 0,
-        },
-      }));
+      const stories = data?.map((story) => {
+        // Use cloned voice user's info if voice was cloned, otherwise use original poster
+        const displayUser = story.cloned_voice_user || story.user;
+        
+        return {
+          ...story,
+          user: {
+            ...displayUser,
+            profileImage:
+              displayUser.avatar_url ||
+              'https://hilo.supabase.co/storage/v1/object/public/avatars/default.png',
+            college: displayUser.college as College | null,
+            friend_count: displayUser.friend_count || 0,
+            friend_request_count: displayUser.friend_request_count || 0,
+          },
+        };
+      });
       setStories(stories || []);
     } catch (error) {
       console.log('Error fetching stories:', error,user);
@@ -419,7 +426,7 @@ export default function ProfileScreen() {
 
   const handleGiveFeedback = () => {
     const email = 'jd@hilo.media';
-    const subject = 'Feedback for Hear Me Out Copy';
+    const subject = 'Feedback for Copy That';
     const body = 'Hi,\n\nI have some feedback about the app:\n\n';
 
     const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(
@@ -583,6 +590,7 @@ export default function ProfileScreen() {
     isLiked: false,
     isPrivate: false,
     isFriendsOnly: false,
+    creatorId: story.user_id, // The actual creator for ownership checks
     user: {
       id: story.user.id,
       name: story.user.username,
@@ -607,7 +615,7 @@ export default function ProfileScreen() {
       </Typography>
       <TouchableOpacity
         style={styles.recordNowButton}
-        onPress={() => router.push('/(tabs)/record')}
+        onPress={() => router.push('/record')}
       >
         <Typography variant="h2" style={styles.recordNowButtonText}>
           record now 🎙️
@@ -998,7 +1006,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             {voiceCloneStatus === 'ready' && (
               <View style={styles.voiceCloneBadge}>
-                <Mic size={14} color="#FFFFFF" />
+                <Check size={16} color="#FFFFFF" />
               </View>
             )}
           </View>
@@ -1472,7 +1480,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     left: -4,
-    backgroundColor: '#FF9B71',
+    backgroundColor: '#4CAF50',
     width: 32,
     height: 32,
     borderRadius: 16,

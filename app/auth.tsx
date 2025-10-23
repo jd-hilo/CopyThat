@@ -9,6 +9,7 @@ import {
   Platform,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Animated,
 } from 'react-native';
 import { Typography } from '@/components/ui/Typography';
 import { SpinningHeadphone } from '@/components/ui/SpinningHeadphone';
@@ -17,22 +18,34 @@ import * as TrackingTransparency from 'expo-tracking-transparency';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/authContext';
+import { WaveBar } from '@/components/audio/WaveBar';
 // jd@sull.com
 
 // test1234
 const { width: screenWidth } = Dimensions.get('window');
-const images = [
-  require('../assets/images/Frame 1 HMO.png'),
-  require('../assets/images/Frame 2 HMO.png'),
-  require('../assets/images/Frame 4 HMO.png'),
-  require('../assets/images/Frame 3 HMO.png'),
-];
 
-const slideTexts = [
-  'welcome to the show 👋',
-  "say what you're thinking",
-  'join your campus circle',
-  'join groups with friends',
+const slides = [
+  {
+    step: 'step 1',
+    title: 'clone your voice',
+    icon: '🎤',
+    description: 'record your unique voice to use in the app',
+    type: 'voice' as const,
+  },
+  {
+    step: 'step 2',
+    title: 'invite your friends',
+    icon: '👥',
+    description: 'share thoughts with your closest circle',
+    type: 'groups' as const,
+  },
+  {
+    step: 'step 3',
+    title: 'copy voices and talk!',
+    icon: '🎧',
+    description: 'start sharing your hear me out moments',
+    type: 'story' as const,
+  },
 ];
 
 export default function WelcomeScreen() {
@@ -41,26 +54,11 @@ export default function WelcomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const { user, userProfile, setUserProfile, setUser } = useAuth();
-  // Handle scroll end to create infinite effect
+  // Handle scroll to update current slide indicator
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
     const currentIndex = Math.round(contentOffsetX / screenWidth);
-
-    if (currentIndex === images.length) {
-      // When we reach the last image (which is a duplicate of the first),
-      // quickly scroll back to the first image without animation
-      scrollViewRef.current?.scrollTo({ x: 0, animated: false });
-      setCurrentSlide(0);
-    } else if (currentIndex === -1) {
-      // When scrolling left from the first image
-      scrollViewRef.current?.scrollTo({
-        x: (images.length - 1) * screenWidth,
-        animated: false,
-      });
-      setCurrentSlide(images.length - 1);
-    } else {
-      setCurrentSlide(currentIndex);
-    }
+    setCurrentSlide(Math.max(0, Math.min(currentIndex, slides.length - 1)));
   };
   const handleContinue = async () => {
     if (Platform.OS === 'ios') {
@@ -73,65 +71,56 @@ export default function WelcomeScreen() {
     router.push('/(auth)/sign-up');
   };
 
+  // orbital animations
+  const orbitRotation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(orbitRotation, {
+        toValue: 1,
+        duration: 12000,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [orbitRotation]);
+
+  // Create 8 orbiting elements evenly spaced
+  const orbitAngles = [0, 45, 90, 135, 180, 225, 270, 315];
+  const emojis = ['🎤', '🎧', '🎵', '🎶', '💬', '🗣️', '👂', '🔊'];
+  
+  const rotations = orbitAngles.map((angle) =>
+    orbitRotation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [`${angle}deg`, `${angle + 360}deg`],
+      extrapolate: 'extend',
+    })
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.slideshowContainer}>
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollViewContent}
-          onMomentumScrollEnd={handleScroll}
-          decelerationRate="fast"
-        >
-          {[...images, images[0]].map((image, index) => (
-            <Image
-              key={index}
-              source={image}
-              style={[
-                styles.slideImage,
-                index === 1
-                  ? { marginLeft: 5 }
-                  : index === 2
-                  ? { marginLeft: 5 }
-                  : null,
-              ]}
-            />
-          ))}
-        </ScrollView>
+      <View style={styles.heroContainer}>
+        <View style={styles.logoWrapper}>
+          <Image source={require('../assets/images/logo.png')} style={styles.heroLogo} />
 
-        {/* Progress bar */}
-        <View style={styles.progressBarContainer}>
-          {images.map((_, index) => (
-            <View
+          {/* orbiting emojis */}
+          {emojis.map((emoji, index) => (
+            <Animated.View
               key={index}
-              style={[
-                styles.progressDot,
-                index === currentSlide ? styles.activeDot : styles.inactiveDot,
-              ]}
-            />
+              style={[styles.orbitContainer, { transform: [{ rotate: rotations[index] }] }]}
+              pointerEvents="none"
+            >
+              <View style={styles.orbitItem}>
+                <Typography variant="h1" style={styles.emoji}>
+                  {emoji}
+                </Typography>
+              </View>
+            </Animated.View>
           ))}
-        </View>
-
-        {/* Slide text display */}
-        <View style={styles.slideTextContainer}>
-          <Typography variant="h3" style={styles.slideText}>
-            {slideTexts[currentSlide]}
-          </Typography>
         </View>
       </View>
 
       <View style={styles.content}>
         <View style={styles.bottomContainer}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('../assets/images/logo.png')}
-              style={styles.logo}
-            />
-          </View>
-
           <View style={styles.buttonWrapper}>
             <TouchableOpacity style={styles.button} onPress={handleContinue}>
               <Typography variant="bodyBold" style={styles.buttonText}>
@@ -171,17 +160,37 @@ const styles = StyleSheet.create({
     height: '60%',
     marginTop: '10%',
   },
-  slideTextContainer: {
+  heroContainer: {
+    height: '60%',
+    marginTop: '6%',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    marginTop: 16,
-    marginBottom: 32,
+    justifyContent: 'center',
   },
-  slideText: {
-    fontSize: 20,
-    color: '#000000',
-    textAlign: 'center',
-    fontFamily: 'Nunito-Bold',
+  logoWrapper: {
+    width: screenWidth * 0.5,
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroLogo: {
+    width: screenWidth * 1.1,
+    height: screenWidth * 0.46,
+    resizeMode: 'contain',
+  },
+  orbitContainer: {
+    position: 'absolute',
+    width: '50%',
+    height: '50%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  orbitItem: {
+    position: 'absolute',
+    top: -120,
+  },
+  emoji: {
+    fontSize: 28,
+    lineHeight: 32,
   },
   progressBarContainer: {
     display: 'flex',
@@ -199,7 +208,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    flex: 'none',
   },
   activeDot: {
     backgroundColor: '#FFE8BA',
@@ -218,10 +226,90 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     alignItems: 'center',
   },
-  slideImage: {
+  slideContainer: {
     width: screenWidth,
     height: '100%',
-    resizeMode: 'contain',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  slideContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepLabel: {
+    fontSize: 14,
+    color: '#8A8E8F',
+    textAlign: 'center',
+    fontFamily: 'Nunito-SemiBold',
+    textTransform: 'lowercase',
+    marginBottom: 16,
+  },
+  slideIcon: {
+    fontSize: 80,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  slideTitle: {
+    fontSize: 32,
+    color: '#333A3C',
+    textAlign: 'center',
+    fontFamily: 'Nunito-Bold',
+    fontWeight: '700',
+    textTransform: 'lowercase',
+    marginBottom: 12,
+  },
+  slideDescription: {
+    fontSize: 16,
+    color: '#8A8E8F',
+    textAlign: 'center',
+    fontFamily: 'Nunito',
+    textTransform: 'lowercase',
+    lineHeight: 24,
+  },
+  voicePreview: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  waveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 40,
+  },
+  groupPreview: {
+    marginTop: 8,
+    marginBottom: 8,
+    alignItems: 'center',
+    gap: 8,
+  },
+  groupPill: {
+    backgroundColor: '#F0F0F0',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  groupPillText: {
+    color: '#333A3C',
+    fontFamily: 'Nunito',
+  },
+  groupPillSecondary: {
+    backgroundColor: '#FFEFB4',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  groupPillSecondaryText: {
+    color: '#000',
+    fontFamily: 'Nunito',
+    fontWeight: '700',
+  },
+  storyPreview: {
+    marginTop: 8,
+    marginBottom: 8,
   },
   content: {
     flex: 1,

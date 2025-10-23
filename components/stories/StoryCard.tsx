@@ -336,10 +336,12 @@ export function StoryCard({
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        const isOwner = user.id === story.user.id;
+        const actualCreatorId = story.creatorId || story.user.id;
+        const isOwner = user.id === actualCreatorId;
         console.log('Checking current user:', {
           currentUserId: user.id,
-          storyUserId: story.user.id,
+          actualCreatorId: actualCreatorId,
+          displayedUserId: story.user.id,
           isOwner,
         });
         setIsCurrentUser(isOwner);
@@ -388,23 +390,24 @@ export function StoryCard({
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (user && story.user && story.user.id) {
-        // Compare auth user ID with story user ID (profile ID)
-        const isOwner = user.id === story.user.id;
+      if (user) {
+        // Use creatorId if available (for cloned voice stories), otherwise use story.user.id
+        const actualCreatorId = story.creatorId || story.user.id;
+        const isOwner = user.id === actualCreatorId;
         console.log('Checking current user for story:', story.id, {
           authUserId: user.id,
-          storyUserId: story.user.id,
+          actualCreatorId: actualCreatorId,
+          displayedUserId: story.user.id,
           isOwner,
-          storyUser: story.user,
         });
         setIsCurrentUser(isOwner);
       } else {
-        console.log('User check failed:', { user, storyUser: story.user });
+        console.log('User check failed - no authenticated user');
         setIsCurrentUser(false);
       }
     };
     checkCurrentUser();
-  }, [story.id, story.user?.id]);
+  }, [story.id, story.creatorId, story.user?.id]);
 
   // (No global driver needed; each bar animates like the recording tab)
 

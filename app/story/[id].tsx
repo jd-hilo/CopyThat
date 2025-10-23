@@ -667,8 +667,8 @@ export default function StoryDetails() {
           style={styles.backButton}
           onPress={() => {
             Share.share({
-              title: 'Listen on Hear Me Out Copy',
-              message: `Listen on Hear Me Out Copy- ${story.title}\n Check it out now:`,
+              title: 'Listen on Copy That',
+              message: `Listen on Copy That - ${story.title}\n Check it out now:`,
               url: `https://sharehearmeout.vercel.app/story/${story.id}`,
             });
           }}

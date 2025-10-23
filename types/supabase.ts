@@ -56,6 +56,10 @@ export type Database = {
           transcription: string | null;
           created_at: string;
           updated_at: string;
+          is_group_story: boolean;
+          is_voice_cloned: boolean | null;
+          original_voice_user_id: string | null;
+          cloned_voice_user_id: string | null;
         };
       };
       reactions: {

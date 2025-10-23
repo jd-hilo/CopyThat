@@ -150,7 +150,7 @@ export default function TabLayout() {
         screenOptions={{
           tabBarActiveTintColor: '#FFFFFF',
           tabBarInactiveTintColor: '#000000',
-          tabBarStyle: userHasVoiceClone ? {
+          tabBarStyle: {
             position: 'absolute',
             width: '100%',
             bottom: 0,
@@ -169,8 +169,6 @@ export default function TabLayout() {
             shadowOpacity: 0.08,
             shadowRadius: 4,
             elevation: 4,
-          } : {
-            display: 'none',
           },
           tabBarItemStyle: {
             paddingTop: 12,
@@ -188,7 +186,6 @@ export default function TabLayout() {
           name="index"
           options={{
             title: 'Home',
-            href: userHasVoiceClone ? '/(tabs)' : null,
             tabBarIcon: ({ focused }) => (
               <View style={styles.iconContainer}>
                 <Ionicons
@@ -198,23 +195,6 @@ export default function TabLayout() {
                 />
               </View>
             ),
-          }}
-        />
-        <Tabs.Screen
-          name="record"
-          options={{
-            title: 'Record',
-            href: userHasVoiceClone ? '/(tabs)/record' : null,
-            tabBarIcon: ({ focused }) => (
-              <View style={styles.iconContainer}>
-                <Ionicons
-                  name={focused ? 'mic' : 'mic-outline'}
-                  size={26}
-                  color={focused ? '#000000' : '#8A8E8F'}
-                />
-              </View>
-            ),
-            headerShown: false,
           }}
         />
         <Tabs.Screen

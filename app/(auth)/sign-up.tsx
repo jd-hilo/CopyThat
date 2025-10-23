@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Keyboard,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -18,14 +19,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { College, COLLEGES } from '@/constants/colleges';
 import { trackAccountCreated, trackEmailEntered } from '../_layout';
 import * as AppleAuthentication from 'expo-apple-authentication';
-type Step = 'email' | 'otp' | 'username' | 'review' | 'password';
+import * as ImagePicker from 'expo-image-picker';
+import { decode } from 'base64-arraybuffer';
+type Step = 'email' | 'password' | 'firstname' | 'profilepicture' | 'review';
 
 export default function SignUpScreen() {
   const [formData, setFormData] = useState({
     email: '',
-    username: '',
+    password: '',
+    firstname: '',
     college: '' as College,
-    otp: '',
+    avatarUrl: '',
   });
   const [currentStep, setCurrentStep] = useState<Step>('email');
   const [loading, setLoading] = useState(false);
@@ -36,196 +40,10 @@ export default function SignUpScreen() {
     null
   );
   const { id } = useLocalSearchParams(); 
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpTimer, setOtpTimer] = useState(0);
-  const [userExist, setUserExist] = useState(false);
-  const [password, setPassword] = useState('');
-  const PASSWORD_EMAILS = ['apple@test.com', 'jd@sull.com', 'jd@sull1.com'];
-
-  const userExistRef = useRef('unknown');
-  // Timer effect for OTP resend
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (otpTimer > 0) {
-      interval = setInterval(() => {
-        setOtpTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [otpTimer]);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
-
-  const checkExistingUser = async (email: string) => {
-    try { 
-
-      const response = await fetch(
-        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/check-existing-user`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({ email }),
-        }
-      );
-
-      if (!response.ok) {
-        console.error('Edge function response not ok:', response.status);
-        throw new Error('Failed to check existing user');
-      }
-
-      const result = await response.json(); 
-
-      return result;
-    } catch (error) {
-      console.error('Error checking existing user:', error);
-      throw error;
-    }
-  };
-
-  const handleSendOTP = async () => {
-    try { 
-
-      // Prevent sending if timer is still active
-      if (otpTimer > 0) {
-        console.log('OTP timer still active, preventing resend');
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-
-      if (!formData.email || !validateEmail(formData.email)) { 
-        setError('Please enter a valid email address');
-        return;
-      }
-
-      // Send OTP only if timer is not active
-      console.log('Email validation passed, sending OTP...');
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email: formData.email,
-      });
-
-      if (signInError) {
-        console.error('OTP send error:', signInError);
-        throw signInError;
-      }
- 
-      setOtpSent(true);
-      setOtpTimer(60); // 60 seconds cooldown
-      setCurrentStep('otp'); 
-    } catch (err) {
-      console.error('handleSendOTP catch error:', err);
-      setError(
-        err instanceof Error ? err.message : 'Failed to send verification code'
-      );
-    } finally {
-      setLoading(false); 
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    try {
-      console.log('=== handleVerifyOTP START ===');
-      console.log('OTP:', formData.otp);
-      console.log('Email:', formData.email);
-      console.log('Loading state:', loading);
-
-      setLoading(true);
-      setError(null);
-
-      // Dismiss keyboard
-      Keyboard.dismiss();
-
-      if (!formData.otp) {
-        console.log('OTP validation failed - no OTP provided');
-        setError('Please enter the verification code');
-        return;
-      }
-
-      console.log('OTP validation passed, verifying OTP...');
-      // First verify the OTP
-      const {
-        data: { user },
-        error: verifyError,
-      } = await supabase.auth.verifyOtp({
-        email: formData.email,
-        token: formData.otp,
-        type: 'email',
-      });
-
-      if (verifyError) {
-        console.error('OTP verification error:', verifyError);
-        throw verifyError;
-      }
-
-      console.log('OTP verified successfully');
-      console.log('User from OTP verification:', user);
-
-      // Check if user has a profile
-      if (user) {
-        console.log('User exists, checking for profile...');
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError) {
-          console.log('Profile query error:', profileError);
-        }
-
-        console.log('Profile data:', profile);
-
-        if (profile && profile.username && profile.college) {
-          console.log('Profile exists and is complete, signing user in...');
-          // User exists and has a complete profile, sign them in
-          const {
-            data: { session },
-            error: sessionError,
-          } = await supabase.auth.getSession();
-          if (sessionError) {
-            console.error('Session error:', sessionError);
-            throw sessionError;
-          }
-
-          console.log('Session data:', session);
-
-          if (session) {
-            console.log('Session exists, navigating to tabs...');
-            // Wait a brief moment to ensure session state is updated
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            router.replace({ pathname: '/(tabs)', params: { id: id } });
-            return;
-          }
-        } else {
-          console.log(
-            'No profile exists or profile is incomplete, continuing with sign up...'
-          );
-        }
-      } else {
-        console.log('No user returned from OTP verification');
-      }
-
-      // If no profile exists or profile is incomplete, continue with sign up
-      console.log('Moving to username step...');
-      setCurrentStep('username');
-      setOtpSent(false); // Reset OTP state
-      setOtpTimer(0); // Reset timer
-      console.log('=== handleVerifyOTP END ===');
-    } catch (err) {
-      console.error('handleVerifyOTP catch error:', err);
-      setError(
-        err instanceof Error ? err.message : 'Invalid verification code'
-      );
-    } finally {
-      setLoading(false);
-      console.log('handleVerifyOTP loading set to false');
-    }
   };
 
   const checkUsernameAvailability = async (username: string) => {
@@ -271,7 +89,7 @@ export default function SignUpScreen() {
       [field]: value,
     }));
 
-    if (field === 'username') {
+    if (field === 'firstname') {
       const debouncedCheck = setTimeout(() => {
         checkUsernameAvailability(value);
       }, 500);
@@ -287,16 +105,14 @@ export default function SignUpScreen() {
           return 'Please enter a valid email address';
         }
         break;
-      case 'otp':
-        if (!formData.otp?.trim()) return 'Verification code is required';
-        if (formData.otp.trim().length !== 6)
-          return 'Verification code must be 6 digits';
+      case 'password':
+        if (!formData.password?.trim()) return 'Password is required';
         break;
-      case 'username':
-        if (!formData.username?.trim()) return 'Username is required';
+      case 'firstname':
+        if (!formData.firstname?.trim()) return 'First name is required';
         const usernameRegex = /^[a-zA-Z0-9_]+$/;
-        if (!usernameRegex.test(formData.username.trim())) {
-          return 'Username can only contain letters, numbers, and underscores';
+        if (!usernameRegex.test(formData.firstname.trim())) {
+          return 'First name can only contain letters, numbers, and underscores';
         }
         break;
     }
@@ -316,11 +132,7 @@ export default function SignUpScreen() {
     console.log('=== handleNext START ===');
     console.log('Current step:', currentStep);
     console.log('Form data:', formData);
-    console.log('handle next sign Up :', userExistRef.current);
-    if (PASSWORD_EMAILS.includes(formData.email.toLowerCase())) {
-      setCurrentStep('password');
-      return;
-    }
+    
     const error = validateStep(currentStep);
     if (error) {
       console.log('Validation error:', error);
@@ -329,139 +141,115 @@ export default function SignUpScreen() {
     }
     setError(null);
 
-    // Handle OTP verification separately
-    if (currentStep === 'otp') {
-      console.log('OTP step detected, calling handleVerifyOTP...');
-      await handleVerifyOTP();
+    // Handle password step separately (need to check if user exists first)
+    if (currentStep === 'password') {
+      console.log('Attempting password sign-in if user exists');
+      setLoading(true);
+      try {
+        const {
+          data: { user },
+          error: signInError,
+        } = await supabase.auth.signInWithPassword({
+          email: formData.email.toLowerCase(),
+          password: formData.password,
+        });
+
+        if (!signInError && user) {
+          console.log('User exists and signed in successfully, routing to tabs');
+          // Small delay to ensure session state is updated
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          router.replace('/(tabs)');
+          return; // Exit early - don't proceed to next step
+        }
+      } catch (e) {
+        // Ignore and proceed to signup flow
+        console.log('Password sign-in attempt failed, proceeding to signup');
+      }
+      
+      // If sign-in didn't succeed, proceed to firstname (new account flow)
+      setLoading(false);
+      animateTransition('next');
+      setCurrentStep('firstname');
+      console.log('=== handleNext END (password -> firstname) ===');
       return;
     }
 
-    // Handle email step with authentication check
-    if (currentStep === 'email') {
-      console.log(
-        'Email step detected, checking if email is already authenticated...'
-      );
-      setLoading(true);
-      try {
-        // Check if timer is still active (meaning OTP was recently sent)
-        if (otpTimer > 0) {
-          console.log('OTP was recently sent, moving to OTP step without resending');
-          animateTransition('next');
-          setCurrentStep('otp');
-          setLoading(false);
-          return;
-        }
-
-       // const result = await checkExistingUser(formData.email);
-
-        // Only send OTP if it hasn't been sent recently
-        if (!otpSent || otpTimer === 0) {
-          console.log('Sending OTP...');
-          const { error: otpError } = await supabase.auth.signInWithOtp({
-            email: formData.email,
-          });
-
-          if (otpError) {
-            throw otpError;
-          }
-
-          // Set OTP timer and sent flag
-          setOtpSent(true);
-          setOtpTimer(60);
-        }
-
-        // if (result.exists && result.hasCompletedProfile) {
-        //   console.log(
-        //     'User exists and has completed profile, moving to OTP verification...'
-        //   );
-        // } else if (result.exists && !result.hasCompletedProfile) {
-        //   console.log(
-        //     'User exists but profile is incomplete, moving to OTP verification...'
-        //   );
-        // } else {
-        //   console.log('User does not exist, moving to OTP verification...');
-        // }
-
-        // Proceed to OTP step
-        console.log('Moving from email to otp step');
-        animateTransition('next');
-        setCurrentStep('otp');
-        setLoading(false);
-        return;
-      } catch (err) {
-        console.error('Error in email step:', err);
-        setError(err instanceof Error ? err.message : 'Failed to verify email. Please try again.');
-        setLoading(false);
-        return;
-      }
-    }
-
+    // Handle other steps
     animateTransition('next');
 
     switch (currentStep) {
-      case 'username':
-        console.log('Moving from username to review step');
+      case 'email':
+        console.log('Moving from email to password step');
+        setCurrentStep('password');
+        break;
+      case 'firstname':
+        console.log('Moving from firstname to profilepicture step');
+        setCurrentStep('profilepicture');
+        break;
+      case 'profilepicture':
+        console.log('Moving from profilepicture to review step');
         setCurrentStep('review');
         break;
     }
     console.log('=== handleNext END ===');
   };
 
-  const handleVerifyOTPLogin = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setUserExist(false);
-
-      // Dismiss keyboard
-      Keyboard.dismiss();
-
-      if (!formData.otp) {
-        setError('Please enter the verification code');
-        return;
-      }
-
-      const {
-        data: { user },
-        error: verifyError,
-      } = await supabase.auth.verifyOtp({
-        email: formData.email.toLowerCase(),
-        token: formData.otp,
-        type: 'email',
-      });
-
-      if (verifyError) throw verifyError;
-
-      if (user) {
-        // Wait a brief moment to ensure session state is updated
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        handleSubmit();
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Invalid verification code'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleBack = () => {
     animateTransition('back');
     switch (currentStep) {
-      case 'otp':
-        setCurrentStep('email');
-        break;
-      case 'username':
-        setCurrentStep('otp');
-        break;
-      case 'review':
-        setCurrentStep('username');
-        break;
       case 'password':
         setCurrentStep('email');
         break;
+      case 'firstname':
+        setCurrentStep('password');
+        break;
+      case 'profilepicture':
+        setCurrentStep('firstname');
+        break;
+      case 'review':
+        setCurrentStep('profilepicture');
+        break;
     }
+  };
+
+  const handleUploadImage = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        setError('Please allow access to your photo library');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].uri) {
+        setSelectedImage(result.assets[0].uri);
+        setFormData((prev) => ({
+          ...prev,
+          avatarUrl: result.assets[0].base64 || '',
+        }));
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      setError('Failed to select image. Please try again.');
+    }
+  };
+
+  const handleSkipProfilePicture = () => {
+    setSelectedImage(null);
+    setFormData((prev) => ({
+      ...prev,
+      avatarUrl: '',
+    }));
+    animateTransition('next');
+    setCurrentStep('review');
   };
 
   const handleSubmit = async () => {
@@ -473,98 +261,124 @@ export default function SignUpScreen() {
       setError(null);
       setLoading(true);
 
-      // First get the current session
-      console.log('Getting current session...');
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.error('Error getting session:', sessionError);
-        throw sessionError;
+      // Sign up with email and password (auto-confirm to skip email verification)
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email.toLowerCase(),
+        password: formData.password,
+        options: {
+          emailRedirectTo: undefined,
+        },
+      });
+
+      if (signUpError) {
+        console.error('Sign up error:', signUpError);
+        // Handle rate limiting error with a user-friendly message
+        if (signUpError.message.includes('security purposes')) {
+          setError('Please wait a moment before trying again');
+          setLoading(false);
+          return;
+        }
+        
+        // Handle user already exists - try to sign in instead
+        if (signUpError.message.includes('already registered') || 
+            signUpError.message.includes('already exists') ||
+            signUpError.message.includes('User already registered')) {
+          console.log('User already exists, attempting sign in...');
+          
+          // Try to sign in with the provided password
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: formData.email.toLowerCase(),
+            password: formData.password,
+          });
+          
+          if (signInError) {
+            setError('This email is already registered. Please use the sign in page or reset your password.');
+            setLoading(false);
+            return;
+          }
+          
+          // Sign in successful, check if user has completed profile
+          if (signInData.user) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', signInData.user.id)
+              .single();
+            
+            if (profile && profile.username) {
+              // Profile exists, go to tabs
+              router.replace({ pathname: '/(tabs)', params: { id: id } });
+            } else {
+              // No profile, continue with profile creation
+              // Won't work because user already has an account
+              setError('Please use the sign in page to access your existing account.');
+            }
+            setLoading(false);
+            return;
+          }
+        }
+        
+        throw signUpError;
       }
 
-      console.log('Current session:', session);
+      console.log('User account created successfully:', data.user);
+      console.log('Session from signup:', data.session);
 
-      if (!session) {
-        console.log('No active session, trying to get user...');
-        // Try to get user without session
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-        if (userError) {
-          console.error('Error getting user:', userError);
-          throw userError;
-        }
+      if (!data.user) {
+        throw new Error('No user returned from sign up');
+      }
 
-        console.log('Current user without session:', user);
+      // If no session, email confirmation is required
+      // Show message but allow them to check their email
+      if (!data.session) {
+        console.log('Email confirmation required');
+        setError('Account created! Please check your email and click the confirmation link to continue.');
+        setLoading(false);
+        return;
+      }
 
-        if (!user) {
-          console.log('No user found, creating new user account...');
-          // Create the user account with email and OTP
-          const { error: signUpError } = await supabase.auth.signUp({
-            email: formData.email,
-            password: Math.random().toString(36).slice(-8), // Generate random password
-            options: {
-              data: {
-                username: formData.username,
-                college: formData.college,
-              },
-            },
+      // Session exists, proceed with profile setup
+      let avatarUrl = 'https://dqthkfmvvedzyowhyeyd.supabase.co/storage/v1/object/public/avatars/default.png';
+      
+      if (formData.avatarUrl && selectedImage) {
+        console.log('Uploading profile picture...');
+        const fileName = `${data.user.id}/${Date.now()}.jpg`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, decode(formData.avatarUrl), {
+            contentType: 'image/jpeg',
+            upsert: true,
           });
 
-          if (signUpError) {
-            console.error('Sign up error:', signUpError);
-            throw signUpError;
-          }
-
-          console.log('User account created successfully');
-
-          // Get the user again after creation
-          const {
-            data: { user: newUser },
-            error: newUserError,
-          } = await supabase.auth.getUser();
-          if (newUserError) {
-            console.error('Error getting new user:', newUserError);
-            throw newUserError;
-          }
-
-          if (newUser) {
-            console.log('New user retrieved:', newUser);
-            await createUserProfile(newUser.id);
-          }
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
         } else {
-          console.log('User exists but no session, creating profile...');
-          await createUserProfile(user.id);
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
+          avatarUrl = publicUrl;
+          console.log('Profile picture uploaded:', avatarUrl);
         }
-      } else {
-        console.log(
-          'Session exists, creating profile for user:',
-          session.user.id
-        );
-        await createUserProfile(session.user.id);
       }
 
-      // Redirect to onboarding flow instead of showing microphone modal
+      // Create user profile
+      await createUserProfile(data.user.id, avatarUrl);
+
+      // Redirect to onboarding flow
       console.log('Redirecting to onboarding flow...');
       router.push('/onboarding-mic');
       console.log('=== handleSubmit END ===');
     } catch (err) {
-      return true;
       console.error('handleSubmit catch error:', err);
-      // setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : 'An error occurred during sign up');
     } finally {
       setLoading(false);
       console.log('handleSubmit loading set to false');
     }
   };
 
-  const createUserProfile = async (
-    userId: string,
-    username: string | null = null
-  ) => { 
+  const createUserProfile = async (userId: string, avatarUrl: string) => { 
     const { data: existingProfile, error: existingProfileError } =
       await supabase.from('profiles').select('*').eq('id', userId).single();
 
@@ -576,21 +390,16 @@ export default function SignUpScreen() {
 
     if (!existingProfile) {
       console.log('No existing profile, creating new profile...');
-      // Create profile only if it doesn't exist
       const { error: profileError } = await supabase.from('profiles').insert({
         id: userId,
-        username: username ? username : formData.username,
+        username: formData.firstname.trim(),
         college: 'None of the Above',
-        avatar_url:
-          'https://dqthkfmvvedzyowhyeyd.supabase.co/storage/v1/object/public/avatars/default.png',
+        avatar_url: avatarUrl,
       });
 
       if (profileError) {
         console.error('Profile creation error:', profileError);
         throw profileError;
-      }
-      if (!profileError && username) {
-        router.replace('/(tabs)');
       }
 
       console.log('Profile created successfully');
@@ -602,10 +411,6 @@ export default function SignUpScreen() {
     trackAccountCreated();
   };
 
-  const handleEmailSubmit = async () => {
-    if (!formData.email) return;
-    setCurrentStep('college');
-  };
   const appSignIn = async () => {
     try {
       const credential = await AppleAuthentication.signInAsync({
@@ -614,7 +419,7 @@ export default function SignUpScreen() {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-      // Sign in via Supabase Auth.
+      
       if (credential.identityToken) {
         const {
           error,
@@ -623,15 +428,17 @@ export default function SignUpScreen() {
           provider: 'apple',
           token: credential.identityToken,
         }); 
+        
         if (!error) {
           if (user) {
-            // Check if user has a profile
             const { data: profile, error: profileError } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', user.id)
               .single();
+            
             console.log('profile and profile Error :', profile, profileError);
+            
             if (!profileError && profile) {
               router.replace({ pathname: '/(tabs)', params: { id: id } });
             } else {
@@ -639,8 +446,9 @@ export default function SignUpScreen() {
               setFormData((prev) => ({
                 ...prev,
                 email: user.email ?? '',
+                firstname: credential.fullName?.givenName ?? '',
               }));
-              setCurrentStep('username');
+              setCurrentStep('firstname');
             }
           }
         } else {
@@ -653,41 +461,6 @@ export default function SignUpScreen() {
     } catch (e) {
       console.log('error :', e);
       setError(e instanceof Error ? e.message : 'Failed to sign in with Apple');
-    }
-  };
-
-  const handlePasswordSignIn = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      if (!password) {
-        setError('Please enter your password');
-        return;
-      }
-
-      const {
-        data: { user },
-        error: signInError,
-      } = await supabase.auth.signInWithPassword({
-        email: formData.email.toLowerCase(),
-        password,
-      });
-
-      if (signInError) throw signInError;
-
-      if (user) {
-        // Wait a brief moment to ensure session state is updated
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        router.replace({ pathname: '/(tabs)', params: { id: id } });
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Invalid email or password'
-      );
-    } finally {
-      setLoading(false);
     }
   };
   const renderStep = () => {
@@ -705,7 +478,7 @@ export default function SignUpScreen() {
                 enter your email
               </Typography>
               <Typography variant="body" style={styles.stepSubtitle}>
-                we'll send you a verification code
+                let's get started with your account
               </Typography>
               <TextInput
                 value={formData.email}
@@ -720,55 +493,41 @@ export default function SignUpScreen() {
               />
             </View>
           );
-        case 'otp':
+        case 'password':
           return (
             <View style={styles.stepContainer}>
               <Typography variant="h1" style={styles.stepTitle}>
-                verify your email
+                create password
               </Typography>
               <Typography variant="body" style={styles.stepSubtitle}>
-                enter the 6-digit code we sent to {formData.email}
+                choose a secure password
               </Typography>
-              <View style={styles.otpContainer}>
-                <TextInput
-                  value={formData.otp}
-                  onChangeText={(value) => handleInputChange('otp', value)}
-                  placeholder="000000"
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  style={styles.input}
-                  placeholderTextColor="#8A8E8F"
-                />
-                {otpTimer > 0 ? (
-                  <Typography variant="bodyBold" style={styles.resendText}>
-                    resend code in {otpTimer}s
-                  </Typography>
-                ) : (
-                  <TouchableOpacity onPress={handleSendOTP} disabled={loading}>
-                    <Typography variant="bodyBold" style={styles.resendLink}>
-                      resend code
-                    </Typography>
-                  </TouchableOpacity>
-                )}
-              </View>
+              <TextInput
+                value={formData.password}
+                onChangeText={(value) => handleInputChange('password', value)}
+                placeholder="enter your password"
+                secureTextEntry
+                style={styles.input}
+                placeholderTextColor="#8A8E8F"
+              />
             </View>
           );
-        case 'username':
+        case 'firstname':
           return (
             <View style={styles.stepContainer}>
               <Typography variant="h1" style={styles.stepTitle}>
-                choose your username
+                what's your first name?
               </Typography>
               <Typography variant="body" style={styles.stepSubtitle}>
-                this is your hear me out Copy codename
+                this is how friends will know you
               </Typography>
               <View style={styles.inputContainer}>
                 <TextInput
-                  value={formData.username}
+                  value={formData.firstname}
                   onChangeText={(value) =>
-                    handleInputChange('username', value.toLowerCase())
+                    handleInputChange('firstname', value.toLowerCase())
                   }
-                  placeholder="choose a username"
+                  placeholder="enter your first name"
                   autoCapitalize="none"
                   style={[
                     styles.input,
@@ -784,7 +543,7 @@ export default function SignUpScreen() {
                 )}
                 {usernameAvailable === true && (
                   <Typography variant="bodyBold" style={styles.availabilityText}>
-                    username available
+                    name available
                   </Typography>
                 )}
                 {usernameAvailable === false && (
@@ -792,9 +551,48 @@ export default function SignUpScreen() {
                     variant="bodyBold"
                     style={[styles.availabilityText, styles.unavailableText]}
                   >
-                    username taken
+                    name taken
                   </Typography>
                 )}
+              </View>
+            </View>
+          );
+        case 'profilepicture':
+          return (
+            <View style={styles.stepContainer}>
+              <Typography variant="h1" style={styles.stepTitle}>
+                add profile picture
+              </Typography>
+              <Typography variant="body" style={styles.stepSubtitle}>
+                let friends recognize you
+              </Typography>
+              <View style={styles.profilePictureContainer}>
+                {selectedImage ? (
+                  <Image
+                    source={{ uri: selectedImage }}
+                    style={styles.profilePicturePreview}
+                  />
+                ) : (
+                  <View style={styles.profilePicturePlaceholder}>
+                    <Ionicons name="person" size={64} color="#8A8E8F" />
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={styles.uploadButton}
+                  onPress={handleUploadImage}
+                >
+                  <Typography variant="bodyBold" style={styles.uploadButtonText}>
+                    {selectedImage ? 'change photo' : 'choose photo'}
+                  </Typography>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.skipButton}
+                  onPress={handleSkipProfilePicture}
+                >
+                  <Typography variant="body" style={styles.skipButtonText}>
+                    skip for now
+                  </Typography>
+                </TouchableOpacity>
               </View>
             </View>
           );
@@ -808,12 +606,18 @@ export default function SignUpScreen() {
                 make sure everything looks correct
               </Typography>
               <View style={styles.reviewContainer}>
+                {selectedImage && (
+                  <Image
+                    source={{ uri: selectedImage }}
+                    style={styles.reviewAvatar}
+                  />
+                )}
                 <View style={styles.reviewItem}>
                   <Typography variant="bodyBold" style={styles.reviewLabel}>
-                    username
+                    first name
                   </Typography>
                   <Typography variant="bodyBold" style={styles.reviewValue}>
-                    {formData.username}
+                    {formData.firstname}
                   </Typography>
                 </View>
                 <View style={styles.reviewItem}>
@@ -825,26 +629,6 @@ export default function SignUpScreen() {
                   </Typography>
                 </View>
               </View>
-            </View>
-          );
-        case 'password':
-          return (
-            <View style={styles.stepContainer}>
-              <Typography variant="h1" style={styles.stepTitle}>
-                enter password
-              </Typography>
-              <Typography variant="body" style={styles.stepSubtitle}>
-                enter your password for {formData.email}
-              </Typography>
-
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="enter your password"
-                secureTextEntry
-                style={styles.input}
-                placeholderTextColor="#8A8E8F"
-              />
             </View>
           );
       }
@@ -902,12 +686,10 @@ export default function SignUpScreen() {
               ],
             ]}
             onPress={
-              currentStep === 'password'
-                ? handlePasswordSignIn
-                : userExist
-                ? handleVerifyOTPLogin
-                : currentStep === 'review'
+              currentStep === 'review'
                 ? handleSubmit
+                : currentStep === 'profilepicture'
+                ? handleNext
                 : handleNext
             }
             disabled={loading || (currentStep === 'email' && !formData.email)}
@@ -1188,5 +970,63 @@ const styles = StyleSheet.create({
     borderColor: '#E5E5E5',
     borderRadius: 16,
     overflow: 'hidden',
+  },
+  profilePictureContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  profilePicturePreview: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    marginBottom: 20,
+    borderWidth: 3,
+    borderColor: '#FFEFB4',
+  },
+  profilePicturePlaceholder: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: '#F8F8F8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 3,
+    borderColor: '#E5E5E5',
+  },
+  uploadButton: {
+    backgroundColor: '#FFEFB4',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    marginBottom: 12,
+    width: '100%',
+  },
+  uploadButtonText: {
+    fontSize: 16,
+    fontFamily: 'Nunito-Bold',
+    fontWeight: '700',
+    color: '#333A3C',
+    textAlign: 'center',
+    textTransform: 'lowercase',
+  },
+  skipButton: {
+    paddingVertical: 12,
+  },
+  skipButtonText: {
+    fontSize: 14,
+    fontFamily: 'Nunito',
+    color: '#8A8E8F',
+    textAlign: 'center',
+    textTransform: 'lowercase',
+  },
+  reviewAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#FFEFB4',
   },
 });

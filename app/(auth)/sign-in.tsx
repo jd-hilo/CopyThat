@@ -13,20 +13,16 @@ import { router } from 'expo-router';
 import { Typography, TextInput, SpinningHeadphone } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
-type Step = 'email' | 'otp' | 'password';
-
-const PASSWORD_EMAILS = ['apple@test.com', 'jd@sull.com', 'jd@sull1.com'];
+type Step = 'email' | 'password';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
   const [currentStep, setCurrentStep] = useState<Step>('email');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpTimer, setOtpTimer] = useState(0);
   const slideAnim = useRef(new Animated.Value(-1000)).current;
 
   // Slide down animation on mount
@@ -38,79 +34,13 @@ export default function SignInScreen() {
     }).start();
   }, []);
 
-  // Timer effect for OTP resend
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (otpTimer > 0) {
-      interval = setInterval(() => {
-        setOtpTimer((prev) => prev - 1);
-      }, 1000);
+  const handleNext = async () => {
+    if (!email) {
+      setError('Please enter your email');
+      return;
     }
-    return () => clearInterval(interval);
-  }, [otpTimer]);
-
-  const handleSendOTP = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      if (!email) {
-        setError('Please enter your email');
-        return;
-      }
-
-      if (PASSWORD_EMAILS.includes(email.toLowerCase())) {
-        setCurrentStep('password');
-        return;
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email: email.toLowerCase(),
-      });
-
-      if (signInError) throw signInError;
-
-      setOtpSent(true);
-      setOtpTimer(60); // 60 seconds cooldown
-      setCurrentStep('otp');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send verification code');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Dismiss keyboard
-      Keyboard.dismiss();
-
-      if (!otp) {
-        setError('Please enter the verification code');
-        return;
-      }
-
-      const { data: { user }, error: verifyError } = await supabase.auth.verifyOtp({
-        email: email.toLowerCase(),
-        token: otp,
-        type: 'email'
-      });
-
-      if (verifyError) throw verifyError;
-
-      if (user) {
-        // Wait a brief moment to ensure session state is updated
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        router.replace('/(tabs)');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid verification code');
-    } finally {
-      setLoading(false);
-    }
+    setError(null);
+    setCurrentStep('password');
   };
 
   const handlePasswordSignIn = async () => {
@@ -144,8 +74,6 @@ export default function SignInScreen() {
 
   const handleBack = () => {
     setCurrentStep('email');
-    setOtpSent(false);
-    setOtpTimer(0);
     setPassword('');
   };
 
@@ -181,40 +109,6 @@ export default function SignInScreen() {
               style={styles.input}
               placeholderTextColor="#8A8E8F"
             />
-          </View>
-        );
-      case 'otp':
-        return (
-          <View style={styles.stepContainer}>
-            <Typography variant="h1" style={styles.stepTitle}>
-              verify your email
-            </Typography>
-            <Typography variant="body" style={styles.stepSubtitle}>
-              enter the 6-digit code we sent to {email}
-            </Typography>
-
-            <View style={styles.otpContainer}>
-              <TextInput
-                value={otp}
-                onChangeText={setOtp}
-                placeholder="000000"
-                keyboardType="number-pad"
-                maxLength={6}
-                style={styles.input}
-                placeholderTextColor="#8A8E8F"
-              />
-              {otpTimer > 0 ? (
-                <Typography variant="body" style={styles.resendText}>
-                  resend code in {otpTimer}s
-                </Typography>
-              ) : (
-                <TouchableOpacity onPress={handleSendOTP} disabled={loading}>
-                  <Typography variant="body" style={styles.resendLink}>
-                    resend code
-                  </Typography>
-                </TouchableOpacity>
-              )}
-            </View>
           </View>
         );
       case 'password':
@@ -280,11 +174,9 @@ export default function SignInScreen() {
                 loading && styles.buttonDisabled
               ]}
               onPress={
-                currentStep === 'otp' 
-                  ? handleVerifyOTP 
-                  : currentStep === 'password'
+                currentStep === 'password'
                   ? handlePasswordSignIn
-                  : handleSendOTP
+                  : handleNext
               }
               disabled={loading}
             >
@@ -295,6 +187,44 @@ export default function SignInScreen() {
               )}
             </TouchableOpacity>
           </View>
+
+          {currentStep === 'email' && (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={
+                AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+              }
+              buttonStyle={
+                AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+              }
+              cornerRadius={16}
+              style={styles.appleButton}
+              onPress={async () => {
+                try {
+                  const credential = await AppleAuthentication.signInAsync({
+                    requestedScopes: [
+                      AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                      AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                    ],
+                  });
+                  
+                  if (credential.identityToken) {
+                    const { error, data: { user } } = await supabase.auth.signInWithIdToken({
+                      provider: 'apple',
+                      token: credential.identityToken,
+                    });
+                    
+                    if (!error && user) {
+                      router.replace('/(tabs)');
+                    } else {
+                      setError('Failed to sign in with Apple');
+                    }
+                  }
+                } catch (e) {
+                  console.error('Apple sign in error:', e);
+                }
+              }}
+            />
+          )}
 
           <View style={styles.footer}>
             <Typography variant="body" style={styles.footerText}>
@@ -437,5 +367,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Nunito',
     textDecorationLine: 'underline',
+  },
+  appleButton: {
+    width: '100%',
+    height: 70,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 16,
+    overflow: 'hidden',
   },
 });

@@ -34,24 +34,27 @@ export function VoiceSelector({
 }: VoiceSelectorProps) {
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
 
-  // Filter members who have voice clones ready
-  const membersWithVoices = groupMembers.filter(
-    (member) => member.voice_clone_status === 'ready' && member.voice_clone_id
+  // Add current user's own voice as an option
+  const currentUser = groupMembers.find((m) => m.id === currentUserId);
+
+  // Filter OTHER members (not current user) who have voice clones ready
+  const otherMembersWithVoices = groupMembers.filter(
+    (member) => 
+      member.id !== currentUserId && 
+      member.voice_clone_status === 'ready' && 
+      member.voice_clone_id
   );
 
   // Debug logging
   console.log('VoiceSelector - All members:', groupMembers.length);
-  console.log('VoiceSelector - Members with voices:', membersWithVoices.length);
-  console.log('VoiceSelector - First member:', groupMembers[0]);
-  console.log('VoiceSelector - Members with voices details:', membersWithVoices.map(m => ({
+  console.log('VoiceSelector - Current user:', currentUser?.username);
+  console.log('VoiceSelector - Other members with voices:', otherMembersWithVoices.length);
+  console.log('VoiceSelector - Other members details:', otherMembersWithVoices.map(m => ({
     id: m.id,
     username: m.username,
     voice_clone_id: m.voice_clone_id,
     voice_clone_status: m.voice_clone_status
   })));
-
-  // Add current user's own voice as an option
-  const currentUser = groupMembers.find((m) => m.id === currentUserId);
 
   const handleSelectVoice = (userId: string | null, voiceId: string | null) => {
     console.log('VoiceSelector - handleSelectVoice called:', { userId, voiceId });
@@ -66,15 +69,7 @@ export function VoiceSelector({
     console.log('Preview voice:', voiceId);
   };
 
-  if (membersWithVoices.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Typography variant="body" style={styles.emptyText}>
-          No group members have recorded their voice yet. Be the first!
-        </Typography>
-      </View>
-    );
-  }
+  // Always show the voice selector (at minimum "Your Voice" will be shown)
 
   return (
     <View style={styles.container}>
@@ -119,8 +114,8 @@ export function VoiceSelector({
             </Typography>
           </TouchableOpacity>
 
-          {/* Group Members' Voices */}
-          {membersWithVoices.map((member) => (
+          {/* Other Group Members' Voices */}
+          {otherMembersWithVoices.map((member) => (
             <TouchableOpacity
               key={member.id}
               style={[

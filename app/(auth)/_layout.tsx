@@ -8,7 +8,6 @@ export default function AuthLayout() {
       <Stack.Screen name="sign-up" />
       <Stack.Screen name="onboarding-mic" />
       <Stack.Screen name="onboarding-notifications" />
-      <Stack.Screen name="onboarding-friends" />
     </Stack>
   );
 }

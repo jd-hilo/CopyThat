@@ -37,6 +37,7 @@ export interface AudioStory {
   createdAt: string;
   category: Category;
   user: User;
+  creatorId?: string; // The actual user who created the story (for ownership checks)
   reactionCount: number;
   likeCount: number;
   isLiked: boolean;

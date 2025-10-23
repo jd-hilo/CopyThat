@@ -38,8 +38,8 @@ export function CommunityTitleToggle({ isCollegeFeed, selectedGroupId, groups, u
     if (selectedGroupId && groups) {
       const selectedGroup = groups.find(g => g.id === selectedGroupId);
       if (selectedGroup) {
-        return selectedGroup.name.length > 10 
-          ? `${selectedGroup.name.slice(0, 10)}...` 
+        return selectedGroup.name.length > 11 
+          ? `${selectedGroup.name.slice(0, 11)}...` 
           : selectedGroup.name;
       }
     }
@@ -50,6 +50,15 @@ export function CommunityTitleToggle({ isCollegeFeed, selectedGroupId, groups, u
     const group = getSelectedGroup();
     if (group) {
       if (group.avatar_url) {
+        // Check if it's an emoji (single character, not a URL)
+        const isEmoji = group.avatar_url.length <= 2 && !group.avatar_url.startsWith('http');
+        if (isEmoji) {
+          return (
+            <Typography variant="body" style={styles.emojiAvatar}>
+              {group.avatar_url}
+            </Typography>
+          );
+        }
         return (
           <Image 
             source={{ uri: group.avatar_url }} 
@@ -99,34 +108,43 @@ export function CommunityTitleToggle({ isCollegeFeed, selectedGroupId, groups, u
               nestedScrollEnabled={true}
             >
               {/* Groups */}
-              {groups && groups?.map(group => (
-                <TouchableOpacity
-                  key={group.id}
-                  style={[
-                    styles.optionItem,
-                    selectedGroupId === group.id && styles.selectedOption
-                  ]}
-                  onPress={() => {
-                    onToggle(false, group.id);
-                    setIsDropdownVisible(false);
-                  }}
-                >
-                  <View style={[styles.optionIcon, styles.groupIcon]}>
-                    {group.avatar_url ? (
-                      <Image 
-                        source={{ uri: group.avatar_url }} 
-                        style={styles.groupAvatar}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <Users size={20} color="#000000" />
-                    )}
-                  </View>
-                  <Typography variant="body" style={styles.optionText}>
-                    {group.name}
-                  </Typography>
-                </TouchableOpacity>
-              ))}
+              {groups && groups?.map(group => {
+                const isEmoji = group.avatar_url && group.avatar_url.length <= 2 && !group.avatar_url.startsWith('http');
+                return (
+                  <TouchableOpacity
+                    key={group.id}
+                    style={[
+                      styles.optionItem,
+                      selectedGroupId === group.id && styles.selectedOption
+                    ]}
+                    onPress={() => {
+                      onToggle(false, group.id);
+                      setIsDropdownVisible(false);
+                    }}
+                  >
+                    <View style={[styles.optionIcon, styles.groupIcon]}>
+                      {group.avatar_url ? (
+                        isEmoji ? (
+                          <Typography variant="body" style={styles.emojiAvatarDropdown}>
+                            {group.avatar_url}
+                          </Typography>
+                        ) : (
+                          <Image 
+                            source={{ uri: group.avatar_url }} 
+                            style={styles.groupAvatar}
+                            resizeMode="cover"
+                          />
+                        )
+                      ) : (
+                        <Users size={20} color="#000000" />
+                      )}
+                    </View>
+                    <Typography variant="body" style={styles.optionText}>
+                      {group.name}
+                    </Typography>
+                  </TouchableOpacity>
+                );
+              })}
 
               {/* Create Group Option */}
               {onCreateGroup && (
@@ -309,6 +327,16 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
+  },
+  emojiAvatar: {
+    fontSize: 14,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  emojiAvatarDropdown: {
+    fontSize: 16,
+    lineHeight: 20,
+    textAlign: 'center',
   },
   disabledOption: {
     opacity: 0.5,

@@ -12,15 +12,15 @@ export default function OnboardingNotificationsScreen() {
       if (status === 'granted') {
         // Permission granted
       }
-      router.push('/onboarding-friends');
+      router.replace('/(tabs)');
     } catch (error) {
       console.error('Error requesting notification permission:', error);
-      router.push('/onboarding-friends');
+      router.replace('/(tabs)');
     }
   };
 
   const handleSkip = () => {
-    router.push('/onboarding-friends');
+    router.replace('/(tabs)');
   };
 
   return (
@@ -40,7 +40,7 @@ export default function OnboardingNotificationsScreen() {
           <View style={styles.mockTop}>
             <View style={styles.mockContent}>
               <Typography variant="h3" style={styles.mockTitle}>
-                "Hear Me Out Copy" Would Like to Send You Notifications
+                "Copy That" Would Like to Send You Notifications
               </Typography>
               <Typography variant="body" style={styles.mockDescription}>
                 Notifications may include alerts, sounds, and icon badges. These can be configured in Settings.

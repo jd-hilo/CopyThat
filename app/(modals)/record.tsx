@@ -1,5 +1,5 @@
 import React from 'react';
-import RecordScreen from '../(tabs)/record';
+import RecordScreen from '../record';
 
 export default function RecordModal() {
   // Reuse the existing record screen UI, presented as a modal group

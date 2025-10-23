@@ -47,10 +47,15 @@ export async function uploadAudio(uri: string, userId: string): Promise<string |
         return null;
       }
 
+      // Detect file extension and content type
+      const isMP3 = fileUri.toLowerCase().endsWith('.mp3');
+      const fileExtension = isMP3 ? '.mp3' : '.m4a';
+      const contentType = isMP3 ? 'audio/mpeg' : 'audio/mp4';
+      
       // Generate file path
-    const filename = `${userId}/${Date.now()}.m4a`;
-    const filePath = `audio/${filename}`;
-      console.log('DEBUG: Generated file path:', filePath);
+      const filename = `${userId}/${Date.now()}${fileExtension}`;
+      const filePath = `audio/${filename}`;
+      console.log('DEBUG: Generated file path:', filePath, 'Content type:', contentType);
     
       // Get the upload URL from Supabase
       console.log('DEBUG: Getting upload URL from Supabase');
@@ -71,7 +76,7 @@ export async function uploadAudio(uri: string, userId: string): Promise<string |
         {
           httpMethod: 'PUT',
           headers: {
-            'Content-Type': 'audio/mp4',
+            'Content-Type': contentType,
           },
         }
       );
