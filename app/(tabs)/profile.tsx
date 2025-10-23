@@ -29,6 +29,7 @@ import {
   X,
   School,
   Pencil,
+  Mic,
 } from 'lucide-react-native';
 import { Typography } from '@/components/ui/Typography';
 import { StoryCard } from '@/components/stories/StoryCard';
@@ -45,6 +46,8 @@ import { showReactionNotificationModal } from '@/lib/notifications';
 import * as Haptics from 'expo-haptics';
 import { SpinningHeadphone } from '@/components/ui/SpinningHeadphone';
 import { useAuth } from '@/contexts/authContext';
+import { VoiceCloningModal } from '@/components/audio/VoiceCloningModal';
+import { deleteVoiceClone } from '@/lib/elevenLabs';
 
 type Story = Database['public']['Tables']['stories']['Row'] & {
   user: Database['public']['Tables']['profiles']['Row'];
@@ -73,6 +76,8 @@ export default function ProfileScreen() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showEditNameModal, setShowEditNameModal] = useState(false);
   const [newName, setNewName] = useState('');
+  const [showVoiceCloningModal, setShowVoiceCloningModal] = useState(false);
+  const [voiceCloneStatus, setVoiceCloneStatus] = useState<string | null>(null);
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -111,6 +116,7 @@ export default function ProfileScreen() {
       await fetchStories();
       await fetchGroups();
       await checkUnreadNotifications();
+      await fetchVoiceCloneStatus();
       // await Promise.all([
       //   fetchStories(),
       //   fetchGroups(),
@@ -291,6 +297,90 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error('Error checking unread notifications:', error);
     }
+  };
+
+  const fetchVoiceCloneStatus = async () => {
+    try {
+      if (!user) return;
+
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('voice_clone_status')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching voice clone status:', error);
+        return;
+      }
+
+      setVoiceCloneStatus(profileData?.voice_clone_status || null);
+    } catch (error) {
+      console.error('Error fetching voice clone status:', error);
+    }
+  };
+
+  const handleVoiceCloneSuccess = async (voiceId: string) => {
+    console.log('Voice clone created successfully:', voiceId);
+    await fetchVoiceCloneStatus();
+    await fetchProfile();
+    
+    // Broadcast voice clone ready event to update tab visibility
+    const channel = supabase.channel('voice_clone_updates');
+    await channel.send({
+      type: 'broadcast',
+      event: 'voice_clone_ready',
+      payload: { userId: user?.id },
+    });
+  };
+
+  const handleDeleteVoiceClone = async () => {
+    Alert.alert(
+      'Delete Voice Clone',
+      'Are you sure you want to delete your cloned voice? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (!profile?.voice_clone_id) return;
+
+              // Delete from Eleven Labs
+              const result = await deleteVoiceClone(profile.voice_clone_id);
+              
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to delete voice clone');
+              }
+
+              // Update profile
+              const { error } = await supabase
+                .from('profiles')
+                .update({
+                  voice_clone_id: null,
+                  voice_clone_status: 'none',
+                  voice_clone_recording_url: null,
+                })
+                .eq('id', user?.id);
+
+              if (error) throw error;
+
+              setVoiceCloneStatus('none');
+              await fetchProfile();
+              
+              Alert.alert('Success', 'Voice clone deleted successfully');
+            } catch (error) {
+              console.error('Error deleting voice clone:', error);
+              Alert.alert(
+                'Error',
+                error instanceof Error ? error.message : 'Failed to delete voice clone'
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleRefresh = () => {
@@ -906,6 +996,11 @@ export default function ProfileScreen() {
             >
               <Camera size={24} color="#FFFFFF" />
             </TouchableOpacity>
+            {voiceCloneStatus === 'ready' && (
+              <View style={styles.voiceCloneBadge}>
+                <Mic size={14} color="#FFFFFF" />
+              </View>
+            )}
           </View>
           <View style={styles.nameContainer}>
             <Typography variant="h2" style={styles.username}>
@@ -1028,6 +1123,35 @@ export default function ProfileScreen() {
           onPress={() => setShowMenu(false)}
         >
           <View style={styles.menuContent}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowMenu(false);
+                setShowVoiceCloningModal(true);
+              }}
+            >
+              <Mic size={16} color="#333A3C" style={{ marginRight: 8 }} />
+              <Typography variant="body" style={styles.menuItemText}>
+                {voiceCloneStatus === 'ready' ? 'Re-record Voice' : 'Record Voice Clone'}
+              </Typography>
+            </TouchableOpacity>
+            {voiceCloneStatus === 'ready' && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowMenu(false);
+                  handleDeleteVoiceClone();
+                }}
+              >
+                <X size={16} color="#FF3B30" style={{ marginRight: 8 }} />
+                <Typography
+                  variant="body"
+                  style={[styles.menuItemText, styles.deleteText]}
+                >
+                  Delete Voice Clone
+                </Typography>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.menuItem}
               onPress={handleEnablePushNotifications}
@@ -1255,6 +1379,15 @@ export default function ProfileScreen() {
           </Animated.View>
         </View>
       </Modal>
+
+      {/* Voice Cloning Modal */}
+      <VoiceCloningModal
+        visible={showVoiceCloningModal}
+        onClose={() => setShowVoiceCloningModal(false)}
+        userId={user?.id || ''}
+        username={profile?.username || ''}
+        onSuccess={handleVoiceCloneSuccess}
+      />
     </SafeAreaView>
   );
 }
@@ -1334,6 +1467,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
+  },
+  voiceCloneBadge: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    backgroundColor: '#FF9B71',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   username: {
     fontSize: 20,

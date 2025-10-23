@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, TouchableWithoutFeedback, StyleSheet, Image, ScrollView } from 'react-native';
 import { Typography } from './Typography';
-import { ChevronDown, Users, School, Plus } from 'lucide-react-native';
+import { ChevronDown, Users, Plus } from 'lucide-react-native';
 
 interface CommunityTitleToggleProps {
   isCollegeFeed: boolean;
@@ -43,7 +43,7 @@ export function CommunityTitleToggle({ isCollegeFeed, selectedGroupId, groups, u
           : selectedGroup.name;
       }
     }
-    return isCollegeFeed ? 'college' : 'friends';
+    return 'groups';
   };
 
   const getTitleIcon = () => {
@@ -58,11 +58,8 @@ export function CommunityTitleToggle({ isCollegeFeed, selectedGroupId, groups, u
           />
         );
       }
-      return <Users size={14.86} color="#000000" />;
     }
-    return isCollegeFeed ? 
-      <School size={14.86} color="#000000" /> : 
-      <Users size={14.86} color="#000000" />;
+    return <Users size={14.86} color="#000000" />;
   };
 
   return (
@@ -101,36 +98,6 @@ export function CommunityTitleToggle({ isCollegeFeed, selectedGroupId, groups, u
               showsVerticalScrollIndicator={true}
               nestedScrollEnabled={true}
             >
-              {/* Community Feed Option */}
-              <TouchableOpacity
-                style={[
-                  styles.optionItem,
-                  isCollegeFeed && !selectedGroupId && styles.selectedOption,
-                  userCollege === 'None of the Above' && styles.disabledOption
-                ]}
-                onPress={() => {
-                  if (userCollege !== 'None of the Above') {
-                    onToggle(true, null);
-                    setIsDropdownVisible(false);
-                  }
-                }}
-                disabled={userCollege === 'None of the Above'}
-              >
-                <View style={[
-                  styles.optionIcon,
-                  userCollege === 'None of the Above' && styles.disabledIcon
-                ]}>
-                  <School size={20} color={userCollege === 'None of the Above' ? '#8A8E8F' : '#000000'} />
-                </View>
-                <Typography variant="body" style={[
-                  styles.optionText, 
-                  styles.collegeText,
-                  ...(userCollege === 'None of the Above' ? [styles.disabledText] : [])
-                ]}>
-                  college
-                </Typography>
-              </TouchableOpacity>
-
               {/* Groups */}
               {groups && groups?.map(group => (
                 <TouchableOpacity

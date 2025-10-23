@@ -13,6 +13,7 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const [hasPendingFriendRequests, setHasPendingFriendRequests] = useState(false);
+  const [userHasVoiceClone, setUserHasVoiceClone] = useState(true); // Default true to avoid flicker
   const { setCurrentlyPlayingId, currentlyPlayingId } = useAudioPlayback();
 
   const handleTabPress = async () => {
@@ -64,8 +65,18 @@ export default function TabLayout() {
       if (!user) {
         setHasUnreadNotifications(false);
         setHasPendingFriendRequests(false);
+        setUserHasVoiceClone(false);
         return;
       }
+
+      // Check voice clone status
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('voice_clone_status')
+        .eq('id', user.id)
+        .single();
+
+      setUserHasVoiceClone(profile?.voice_clone_status === 'ready');
 
       // Simple check: only unread notifications for this user
       const { data: unreadNotifications, error: notificationsError } = await supabase
@@ -105,7 +116,7 @@ export default function TabLayout() {
     const interval = setInterval(checkNotificationStatus, 30000); // Check every 30 seconds
 
     // Subscribe to notifications_read event
-    const channel = supabase.channel('notifications')
+    const notificationsChannel = supabase.channel('notifications')
       .on('broadcast', { event: 'notifications_read' }, async (payload) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user && payload.userId === user.id) {
@@ -114,9 +125,20 @@ export default function TabLayout() {
       })
       .subscribe();
 
+    // Subscribe to voice clone updates
+    const voiceCloneChannel = supabase.channel('voice_clone_updates')
+      .on('broadcast', { event: 'voice_clone_ready' }, async (payload) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && payload.userId === user.id) {
+          setUserHasVoiceClone(true);
+        }
+      })
+      .subscribe();
+
     return () => {
       clearInterval(interval);
-      channel.unsubscribe();
+      notificationsChannel.unsubscribe();
+      voiceCloneChannel.unsubscribe();
       setHasUnreadNotifications(false);
       setHasPendingFriendRequests(false);
     };
@@ -128,7 +150,7 @@ export default function TabLayout() {
         screenOptions={{
           tabBarActiveTintColor: '#FFFFFF',
           tabBarInactiveTintColor: '#000000',
-          tabBarStyle: {
+          tabBarStyle: userHasVoiceClone ? {
             position: 'absolute',
             width: '100%',
             bottom: 0,
@@ -147,6 +169,8 @@ export default function TabLayout() {
             shadowOpacity: 0.08,
             shadowRadius: 4,
             elevation: 4,
+          } : {
+            display: 'none',
           },
           tabBarItemStyle: {
             paddingTop: 12,
@@ -164,6 +188,7 @@ export default function TabLayout() {
           name="index"
           options={{
             title: 'Home',
+            href: userHasVoiceClone ? '/(tabs)' : null,
             tabBarIcon: ({ focused }) => (
               <View style={styles.iconContainer}>
                 <Ionicons
@@ -179,6 +204,7 @@ export default function TabLayout() {
           name="record"
           options={{
             title: 'Record',
+            href: userHasVoiceClone ? '/(tabs)/record' : null,
             tabBarIcon: ({ focused }) => (
               <View style={styles.iconContainer}>
                 <Ionicons

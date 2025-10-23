@@ -43,6 +43,7 @@ import {
   Share as ShareIcon,
   LogOut,
   X,
+  Mic,
 } from 'lucide-react-native';
 import { AddFriendsModal } from '@/components/friends/AddFriendsModal';
 import { GroupModal } from '@/components/groups/GroupModal';
@@ -50,6 +51,7 @@ import { JoinGroupModal } from '@/components/groups/JoinGroupModal';
 import { RecordingModal } from '@/components/audio/RecordingModal';
 import { ModalC } from '@/components/modalC';
 import OnBoarding from '@/components/onBoarding';
+import { VoiceCloningModal } from '@/components/audio/VoiceCloningModal';
 // Use require to avoid type resolution issues for expo-updates in TS
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Updates = require('expo-updates');
@@ -168,6 +170,8 @@ export default function HomeScreen() {
   const currentVisible = useRef(null);
   const hintOpacity = useRef(new Animated.Value(0)).current;
   const hintTimerRef = useRef<any>(null);
+  const [userHasVoiceClone, setUserHasVoiceClone] = useState(false);
+  const [showVoiceCloningModal, setShowVoiceCloningModal] = useState(false);
   // When the playing story changes, scroll it to the top anchor
   useEffect(() => {
     if (!currentlyPlayingId) return;
@@ -183,6 +187,8 @@ export default function HomeScreen() {
     if (userProfile) {
       mixpanel.identify(userProfile.id);
       //posthog.identify(userProfile.id, { user: userProfile });
+      // Check voice clone status from profile
+      setUserHasVoiceClone(userProfile.voice_clone_status === 'ready');
     }
     if (id) {
       router.push({ pathname: '/story/[id]', params: { id: id } });
@@ -192,7 +198,7 @@ export default function HomeScreen() {
         setCompleteProfileModal(true);
       }
     }
-  }, []);
+  }, [userProfile]);
 
   // Handle feed parameter and auto-refresh
   useEffect(() => {
@@ -222,6 +228,7 @@ export default function HomeScreen() {
           .eq('id', user.id)
           .single();
         setUserProfile(profile);
+        setUserHasVoiceClone(profile?.voice_clone_status === 'ready');
 
         if (profile?.college === 'None of the Above') {
           setIsCollegeFeed(true);
@@ -510,20 +517,10 @@ export default function HomeScreen() {
         // Now get the stories for these IDs
         query = query.eq('is_group_story', true).in('id', storyIds);
       } else if (isCollegeFeed) {
-        console.log('fetch thoughts 6');
-        // In community feed, show all stories except friends-only ones
-        query = query.eq('is_friends_only', false).eq('is_private', false);
-
-        // If user has no college, only show their own non-friends-only stories
-        if (!userProfile?.college) {
-          console.log('No college, showing only own non-friends-only stories');
-          query = query.eq('user_id', user.id);
-          console.log('fetch thoughts 7');
-        } else {
-          // Only show stories from users in the same college
-          query = query.eq('user.college', userProfile.college);
-          console.log('fetch thoughts 8');
-        }
+        console.log('fetch thoughts 6 - groups only mode');
+        // In groups-only mode, don't show any stories in college feed
+        // This will result in an empty state
+        query = query.eq('is_friends_only', false).eq('is_private', false).eq('user_id', 'non-existent-user');
       } else {
         // In friends feed, show:
         // 1. Your own stories that are friends-only
@@ -994,6 +991,57 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
   };
 
   const renderEmptyState = () => {
+    // Check if user needs to record voice clone first
+    if (!userHasVoiceClone) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyMessageBox}>
+            {/* Card Image Container */}
+            <View style={styles.cardImageContainer}>
+              <Image
+                source={require('@/assets/images/cards.png')}
+                style={styles.cardImage}
+                resizeMode="contain"
+              />
+            </View>
+
+            {/* Text and Button Container */}
+            <View style={styles.textButtonContainer}>
+              <Typography variant="body" style={styles.groupEmptyText}>
+                🎙️ record your voice first to start using the app
+              </Typography>
+
+              <View style={styles.inviteButtonContainer}>
+                <LinearGradient
+                  colors={[
+                    '#FF0000',
+                    '#FFA500',
+                    '#FFFF00',
+                    '#00FF00',
+                    '#00FFFF',
+                    '#0000FF',
+                    '#FF00FF',
+                  ]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.gradientBorder}
+                >
+                  <TouchableOpacity
+                    style={styles.inviteButton}
+                    onPress={() => router.push('/(tabs)/profile')}
+                  >
+                    <Typography variant="h2" style={styles.inviteText}>
+                      go to profile
+                    </Typography>
+                  </TouchableOpacity>
+                </LinearGradient>
+              </View>
+            </View>
+          </View>
+        </View>
+      );
+    }
+
     if (loading) {
       return (
         <View style={styles.emptyContainer}>
@@ -1141,83 +1189,54 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
       }
     }
 
-    // College feed - keep existing messages
+    // College feed - show groups-only message for all users
     if (isCollegeFeed) {
-      // Special case for "None of the Above" users - show groups message format
-      if (userProfile?.college === 'None of the Above') {
-        return (
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyMessageBox}>
-              {/* Card Image Container */}
-              <View style={styles.cardImageContainer}>
-                <Image
-                  source={require('@/assets/images/cards.png')}
-                  style={styles.cardImage}
-                  resizeMode="contain"
-                />
-              </View>
-
-              {/* Text and Button Container */}
-              <View style={styles.textButtonContainer}>
-                <Typography variant="body" style={styles.groupEmptyText}>
-                  we are not at your college yet 🥺
-                </Typography>
-
-                <View style={styles.smallButtonContainer}>
-                  <TouchableOpacity
-                    style={styles.createGroupButton}
-                    onPress={() => setIsGroupModalVisible(true)}
-                  >
-                    <Typography
-                      variant="body"
-                      style={[styles.smallButtonText, { color: '#FFFFFF' }]}
-                    >
-                      create group
-                    </Typography>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.smallButtonContainer}>
-                  <TouchableOpacity
-                    style={styles.joinGroupButton}
-                    onPress={() => setShowJoinGroupModal(true)}
-                  >
-                    <Typography
-                      variant="body"
-                      style={[styles.smallButtonText, { color: '#000000' }]}
-                    >
-                      join group
-                    </Typography>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
-      }
-
-      // Regular college feed for other users
       return (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyMessageBox}>
-            <Typography variant="h2" style={styles.emptyTitle}>
-              No thoughts from your community yet
-            </Typography>
-            <Typography
-              variant="body"
-              color={theme.colors.text.secondary}
-              style={styles.emptyText}
-            >
-              Be the first to share a thought with your community!
-            </Typography>
-            <TouchableOpacity
-              style={styles.recordNowButton}
-              onPress={() => router.push('/(tabs)/record')}
-            >
-              <Typography variant="h2" style={styles.recordNowButtonText}>
-                record now 🎙️
+            {/* Card Image Container */}
+            <View style={styles.cardImageContainer}>
+              <Image
+                source={require('@/assets/images/cards.png')}
+                style={styles.cardImage}
+                resizeMode="contain"
+              />
+            </View>
+
+            {/* Text and Button Container */}
+            <View style={styles.textButtonContainer}>
+              <Typography variant="body" style={styles.groupEmptyText}>
+                create or join a group to get started 🎧
               </Typography>
-            </TouchableOpacity>
+
+              <View style={styles.smallButtonContainer}>
+                <TouchableOpacity
+                  style={styles.createGroupButton}
+                  onPress={() => setIsGroupModalVisible(true)}
+                >
+                  <Typography
+                    variant="body"
+                    style={[styles.smallButtonText, { color: '#FFFFFF' }]}
+                  >
+                    create group
+                  </Typography>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.smallButtonContainer}>
+                <TouchableOpacity
+                  style={styles.joinGroupButton}
+                  onPress={() => setShowJoinGroupModal(true)}
+                >
+                  <Typography
+                    variant="body"
+                    style={[styles.smallButtonText, { color: '#000000' }]}
+                  >
+                    join group
+                  </Typography>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </View>
       );
@@ -1340,35 +1359,84 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
   return (
     <>
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={styles.headerLeft}>
-              <View style={styles.feedToggleContainer}>
-                <CommunityTitleToggle
-                  isCollegeFeed={isCollegeFeed}
-                  selectedGroupId={selectedGroupId}
-                  groups={userGroups}
-                  userCollege={userProfile?.college}
-                  onToggle={(newIsCollegeFeed, groupId) => {
-                    setIsCollegeFeed(newIsCollegeFeed);
-                    setSelectedGroupId(groupId ?? null);
-                  }}
-                  onCreateGroup={() => setIsGroupModalVisible(true)}
-                  onJoinGroup={() => setShowJoinGroupModal(true)}
+        {/* Show voice clone requirement message if user hasn't recorded */}
+        {!userHasVoiceClone ? (
+          <View style={styles.voiceCloneRequiredOverlay}>
+            <View style={styles.emptyMessageBox}>
+              {/* Card Image Container */}
+              <View style={styles.cardImageContainer}>
+                <Image
+                  source={require('@/assets/images/cards.png')}
+                  style={styles.cardImage}
+                  resizeMode="contain"
                 />
               </View>
-            </View>
-            <View style={styles.headerRight}>
-              <View style={styles.hotNewToggleContainer}>
-                <HotNewToggle
-                  isHotFeed={isHotFeed}
-                  onToggle={handleHotNewToggle}
-                />
+
+              {/* Text and Button Container */}
+              <View style={styles.textButtonContainer}>
+                <Typography variant="body" style={styles.voiceCloneRequiredSubtitle}>
+                  voice cloning is required to use the app
+                </Typography>
+
+                <View style={styles.inviteButtonContainer}>
+                  <LinearGradient
+                    colors={[
+                      '#FF0000',
+                      '#FFA500',
+                      '#FFFF00',
+                      '#00FF00',
+                      '#00FFFF',
+                      '#0000FF',
+                      '#FF00FF',
+                    ]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.gradientBorder}
+                  >
+                    <TouchableOpacity
+                      style={styles.inviteButton}
+                      onPress={() => setShowVoiceCloningModal(true)}
+                    >
+                      <Typography variant="h2" style={styles.inviteText}>
+                        🎙️ record voice
+                      </Typography>
+                    </TouchableOpacity>
+                  </LinearGradient>
+                </View>
               </View>
             </View>
           </View>
-        </View>
-        <FlatList
+        ) : (
+          <>
+            <View style={styles.header}>
+              <View style={styles.headerTop}>
+                <View style={styles.headerLeft}>
+                  <View style={styles.feedToggleContainer}>
+                    <CommunityTitleToggle
+                      isCollegeFeed={isCollegeFeed}
+                      selectedGroupId={selectedGroupId}
+                      groups={userGroups}
+                      userCollege={userProfile?.college}
+                      onToggle={(newIsCollegeFeed, groupId) => {
+                        setIsCollegeFeed(newIsCollegeFeed);
+                        setSelectedGroupId(groupId ?? null);
+                      }}
+                      onCreateGroup={() => setIsGroupModalVisible(true)}
+                      onJoinGroup={() => setShowJoinGroupModal(true)}
+                    />
+                  </View>
+                </View>
+                <View style={styles.headerRight}>
+                  <View style={styles.hotNewToggleContainer}>
+                    <HotNewToggle
+                      isHotFeed={isHotFeed}
+                      onToggle={handleHotNewToggle}
+                    />
+                  </View>
+                </View>
+              </View>
+            </View>
+            <FlatList
           ref={scrollRef}
           data={thoughts}
           renderItem={renderItem}
@@ -1387,40 +1455,50 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
           viewabilityConfig={viewabilityConfig}
           onViewableItemsChanged={onViewableItemsChanged}
           contentContainerStyle={styles.flatListContent}
-        />
-        {loading && (thoughts?.length ?? 0) === 0 && (
-          <View style={styles.loadingOverlay}>
-            <SpinningHeadphone size={32} />
-            <Animated.View
-              style={{
-                opacity: hintOpacity,
-                marginTop: 12,
-                paddingHorizontal: 24,
-              }}
-            >
-              <Typography
-                variant="body"
-                style={{ color: '#8A8E8F', textAlign: 'center' }}
-              >
-                Having Issues? 🤔
-              </Typography>
-              <TouchableOpacity
-                style={styles.refreshButton}
-                onPress={async () => {
-                  await Updates.reloadAsync();
-                }}
-                activeOpacity={0.85}
-              >
-                <Typography variant="body" style={styles.refreshText}>
-                  refresh
-                </Typography>
-              </TouchableOpacity>
-            </Animated.View>
-          </View>
-        )}
+            />
+            {loading && (thoughts?.length ?? 0) === 0 && (
+              <View style={styles.loadingOverlay}>
+                <SpinningHeadphone size={32} />
+                <Animated.View
+                  style={{
+                    opacity: hintOpacity,
+                    marginTop: 12,
+                    paddingHorizontal: 24,
+                  }}
+                >
+                  <Typography
+                    variant="body"
+                    style={{ color: '#8A8E8F', textAlign: 'center' }}
+                  >
+                    Having Issues? 🤔
+                  </Typography>
+                  <TouchableOpacity
+                    style={styles.refreshButton}
+                    onPress={async () => {
+                      await Updates.reloadAsync();
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Typography variant="body" style={styles.refreshText}>
+                      refresh
+                    </Typography>
+                  </TouchableOpacity>
+                </Animated.View>
+              </View>
+            )}
 
-        {/* Group Actions FAB */}
-        {selectedGroupId && !isCollegeFeed && (
+            {/* Record Button FAB - Bottom Left */}
+            <View style={styles.recordFabContainer}>
+              <TouchableOpacity
+                style={styles.fabButton}
+                onPress={() => router.push('/(tabs)/record')}
+              >
+                <Mic size={24} color="#000000" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Group Actions FAB */}
+            {selectedGroupId && !isCollegeFeed && (
           <View style={styles.fabContainer}>
             <TouchableOpacity
               style={styles.fabButton}
@@ -1455,20 +1533,22 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
                   <Text style={styles.fabOptionText}>Leave Group</Text>
                 </TouchableOpacity>
               </View>
-            )}
-          </View>
-        )}
-
-        {isQuickRecordingModalVisible && selectedStory && (
-          <QuickRecordingModal
-            storyId={selectedStory.id}
-            isVisible={isQuickRecordingModalVisible}
-            onClose={() => setIsQuickRecordingModalVisible(false)}
-            onSuccess={handleSaveRecording}
-            username={selectedStory.user.username}
-          />
+              )}
+            </View>
+          )}
+          </>
         )}
       </SafeAreaView>
+
+      {isQuickRecordingModalVisible && selectedStory && (
+        <QuickRecordingModal
+          storyId={selectedStory.id}
+          isVisible={isQuickRecordingModalVisible}
+          onClose={() => setIsQuickRecordingModalVisible(false)}
+          onSuccess={handleSaveRecording}
+          username={selectedStory.user.username}
+        />
+      )}
 
       {/* Removed sticky microphone button; use the Mic tab to navigate to record screen */}
 
@@ -1530,6 +1610,31 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
           />
         </ScrollView>
       </ModalC>
+
+      {/* Voice Cloning Modal */}
+      <VoiceCloningModal
+        visible={showVoiceCloningModal}
+        onClose={() => setShowVoiceCloningModal(false)}
+        userId={user?.id || ''}
+        username={userProfile?.username || ''}
+        onSuccess={async (voiceId) => {
+          console.log('Voice clone created on home screen:', voiceId);
+          setUserHasVoiceClone(true);
+          setShowVoiceCloningModal(false);
+          
+          // Refresh user profile to get updated voice clone status
+          if (user) {
+            const { data: updatedProfile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', user.id)
+              .single();
+            if (updatedProfile) {
+              setUserProfile(updatedProfile);
+            }
+          }
+        }}
+      />
 
       {/* View Members Modal */}
       <Modal
@@ -2071,6 +2176,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
   },
+  recordFabContainer: {
+    position: 'absolute',
+    bottom: 120,
+    left: 16,
+    zIndex: 1000,
+  },
   fabContainer: {
     position: 'absolute',
     bottom: 120,
@@ -2221,5 +2332,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#E4E4E4',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  voiceCloneRequiredOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  voiceCloneRequiredTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'Nunito-Bold',
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 36,
+  },
+  voiceCloneRequiredSubtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#626262',
+    fontFamily: 'Nunito-SemiBold',
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });

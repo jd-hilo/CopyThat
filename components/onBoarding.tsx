@@ -15,7 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { College, COLLEGES } from '@/constants/colleges';
 import React from 'react';
-type Step = 'email' | 'otp' | 'username' | 'college' | 'review';
+type Step = 'email' | 'otp' | 'username' | 'review';
 
 export default function OnBoarding({
   userId,
@@ -112,11 +112,7 @@ export default function OnBoarding({
 
     switch (currentStep) {
       case 'username':
-        console.log('Moving from username to college step');
-        setCurrentStep('college');
-        break;
-      case 'college':
-        console.log('Moving from college to review step');
+        console.log('Completing onboarding after username step');
         completeOnboarding();
         break;
     }
@@ -126,12 +122,11 @@ export default function OnBoarding({
   const completeOnboarding = async () => {
     try {
       console.log('completing on boarding :');
-      setCurrentStep('');
       const { error } = await supabase
         .from('profiles') // replace with your actual table name
         .update({
           username: formData.username,
-          college: formData.college,
+          college: 'None of the Above',
           complete_profile: true,
         })
         .eq('id', userId); // or whatever your unique identifier column is
@@ -146,7 +141,7 @@ export default function OnBoarding({
       return { success: true };
     } catch (e) {
       console.error('Unexpected error:', e);
-      return { success: false, error: e.message };
+      return { success: false, error: (e as Error).message };
     }
   };
 
@@ -203,50 +198,6 @@ export default function OnBoarding({
               </View>
             </View>
           );
-        case 'college':
-          return (
-            <View style={styles.stepContainer}>
-              <Typography variant="h1" style={styles.stepTitle}>
-                select your college
-              </Typography>
-              <Typography variant="body" style={styles.stepSubtitle}>
-                connect with students from your school
-              </Typography>
-              <ScrollView
-                style={styles.collegeScrollView}
-                contentContainerStyle={styles.collegeScrollContent}
-                showsVerticalScrollIndicator={false}
-              >
-                <View style={styles.collegeContainer}>
-                  {COLLEGES.map((collegeOption) => (
-                    <TouchableOpacity
-                      key={collegeOption}
-                      style={[
-                        styles.collegeOption,
-                        formData.college === collegeOption &&
-                          styles.selectedCollege,
-                      ]}
-                      onPress={() =>
-                        handleInputChange('college', collegeOption)
-                      }
-                    >
-                      <Typography
-                        variant="body"
-                        style={[
-                          styles.collegeText,
-                          formData.college === collegeOption
-                            ? styles.selectedCollegeText
-                            : {},
-                        ]}
-                      >
-                        {collegeOption}
-                      </Typography>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          );
         case 'review':
           return (
             <View style={styles.stepContainer}>
@@ -271,14 +222,6 @@ export default function OnBoarding({
                   </Typography>
                   <Typography variant="body" style={styles.reviewValue}>
                     {formData.email}
-                  </Typography>
-                </View>
-                <View style={styles.reviewItem}>
-                  <Typography variant="bodyBold" style={styles.reviewLabel}>
-                    college
-                  </Typography>
-                  <Typography variant="body" style={styles.reviewValue}>
-                    {formData.college}
                   </Typography>
                 </View>
               </View>

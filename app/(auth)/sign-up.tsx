@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { College, COLLEGES } from '@/constants/colleges';
 import { trackAccountCreated, trackEmailEntered } from '../_layout';
 import * as AppleAuthentication from 'expo-apple-authentication';
-type Step = 'email' | 'otp' | 'username' | 'college' | 'review' | 'password';
+type Step = 'email' | 'otp' | 'username' | 'review' | 'password';
 
 export default function SignUpScreen() {
   const [formData, setFormData] = useState({
@@ -299,9 +299,6 @@ export default function SignUpScreen() {
           return 'Username can only contain letters, numbers, and underscores';
         }
         break;
-      case 'college':
-        if (!formData.college) return 'College is required';
-        break;
     }
     return null;
   };
@@ -403,11 +400,7 @@ export default function SignUpScreen() {
 
     switch (currentStep) {
       case 'username':
-        console.log('Moving from username to college step');
-        setCurrentStep('college');
-        break;
-      case 'college':
-        console.log('Moving from college to review step');
+        console.log('Moving from username to review step');
         setCurrentStep('review');
         break;
     }
@@ -462,11 +455,8 @@ export default function SignUpScreen() {
       case 'username':
         setCurrentStep('otp');
         break;
-      case 'college':
-        setCurrentStep('username');
-        break;
       case 'review':
-        setCurrentStep('college');
+        setCurrentStep('username');
         break;
       case 'password':
         setCurrentStep('email');
@@ -590,7 +580,7 @@ export default function SignUpScreen() {
       const { error: profileError } = await supabase.from('profiles').insert({
         id: userId,
         username: username ? username : formData.username,
-        college: formData.college,
+        college: 'None of the Above',
         avatar_url:
           'https://dqthkfmvvedzyowhyeyd.supabase.co/storage/v1/object/public/avatars/default.png',
       });
@@ -808,50 +798,6 @@ export default function SignUpScreen() {
               </View>
             </View>
           );
-        case 'college':
-          return (
-            <View style={styles.stepContainer}>
-              <Typography variant="h1" style={styles.stepTitle}>
-                select your college
-              </Typography>
-              <Typography variant="body" style={styles.stepSubtitle}>
-                connect with students from your school
-              </Typography>
-              <ScrollView
-                style={styles.collegeScrollView}
-                contentContainerStyle={styles.collegeScrollContent}
-                showsVerticalScrollIndicator={false}
-              >
-                <View style={styles.collegeContainer}>
-                  {COLLEGES.map((collegeOption) => (
-                    <TouchableOpacity
-                      key={collegeOption}
-                      style={[
-                        styles.collegeOption,
-                        formData.college === collegeOption &&
-                          styles.selectedCollege,
-                      ]}
-                      onPress={() =>
-                        handleInputChange('college', collegeOption)
-                      }
-                    >
-                      <Typography
-                        variant="bodyBold"
-                        style={[
-                          styles.collegeText,
-                          formData.college === collegeOption
-                            ? styles.selectedCollegeText
-                            : {},
-                        ]}
-                      >
-                        {collegeOption}
-                      </Typography>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          );
         case 'review':
           return (
             <View style={styles.stepContainer}>
@@ -876,14 +822,6 @@ export default function SignUpScreen() {
                   </Typography>
                   <Typography variant="bodyBold" style={styles.reviewValue}>
                     {formData.email}
-                  </Typography>
-                </View>
-                <View style={styles.reviewItem}>
-                  <Typography variant="bodyBold" style={styles.reviewLabel}>
-                    college
-                  </Typography>
-                  <Typography variant="bodyBold" style={styles.reviewValue}>
-                    {formData.college}
                   </Typography>
                 </View>
               </View>

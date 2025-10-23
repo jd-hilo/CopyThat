@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { Database } from '@/types/supabase';
 import { uploadAudio } from './storage';
 import { Platform } from 'react-native';
+import { voiceChanger } from './elevenLabs';
 
 type Story = Database['public']['Tables']['stories']['Row'];
 
@@ -14,6 +15,9 @@ interface CreateStoryData {
   isPrivate?: boolean;
   isFriendsOnly?: boolean;
   groupId?: string | null;
+  selectedVoiceUserId?: string | null;
+  selectedVoiceId?: string | null;
+  clonedAudioUri?: string | null;
 }
 
 export async function createStory(
@@ -37,6 +41,41 @@ export async function createStory(
     }
     console.log('DEBUG: Final audio URI:', audioUri);
 
+    // Handle voice cloning if selected
+    let finalAudioUri = audioUri;
+    let isVoiceCloned = false;
+    let originalVoiceUserId = userId;
+    let clonedVoiceUserId: string | null = null;
+
+    // Check if cloned audio is already provided (from preview)
+    if (data.clonedAudioUri && data.selectedVoiceUserId) {
+      console.log('DEBUG: Using pre-generated cloned audio');
+      finalAudioUri = data.clonedAudioUri;
+      isVoiceCloned = true;
+      clonedVoiceUserId = data.selectedVoiceUserId;
+    } else if (data.selectedVoiceId && data.selectedVoiceUserId) {
+      // Generate voice clone if not already done using speech-to-speech
+      console.log('DEBUG: Voice cloning selected, converting audio with speech-to-speech');
+      try {
+        const voiceChangeResult = await voiceChanger(audioUri, data.selectedVoiceId);
+        
+        if (voiceChangeResult.success && voiceChangeResult.audioUri) {
+          finalAudioUri = voiceChangeResult.audioUri;
+          isVoiceCloned = true;
+          clonedVoiceUserId = data.selectedVoiceUserId;
+          console.log('DEBUG: Voice successfully cloned via speech-to-speech');
+        } else {
+          console.error('DEBUG: Voice cloning failed:', voiceChangeResult.error);
+          // Fall back to original audio
+          console.log('DEBUG: Falling back to original audio');
+        }
+      } catch (error) {
+        console.error('DEBUG: Error during voice cloning:', error);
+        // Fall back to original audio
+        console.log('DEBUG: Falling back to original audio due to error');
+      }
+    }
+
     // Upload audio file with retry
     let audioUrl: string | null = null;
     let retries = 3;
@@ -45,7 +84,7 @@ export async function createStory(
     while (retries > 0 && !audioUrl) {
       try {
         console.log(`DEBUG: Upload attempt ${4 - retries}`);
-        audioUrl = await uploadAudio(audioUri, userId);
+        audioUrl = await uploadAudio(finalAudioUri, userId);
         if (audioUrl) {
           console.log('DEBUG: Upload successful');
           break;
@@ -90,7 +129,10 @@ export async function createStory(
           transcription: data.transcription,
           is_private: true, // Group stories are private by default
           is_friends_only: false,
-          is_group_story: true
+          is_group_story: true,
+          is_voice_cloned: isVoiceCloned,
+          original_voice_user_id: isVoiceCloned ? originalVoiceUserId : null,
+          cloned_voice_user_id: isVoiceCloned ? clonedVoiceUserId : null,
         })
         .select('id')
         .single();
@@ -128,7 +170,10 @@ export async function createStory(
           transcription: data.transcription,
           is_private: data.isPrivate || false,
           is_friends_only: data.isFriendsOnly || false,
-          is_group_story: false
+          is_group_story: false,
+          is_voice_cloned: isVoiceCloned,
+          original_voice_user_id: isVoiceCloned ? originalVoiceUserId : null,
+          cloned_voice_user_id: isVoiceCloned ? clonedVoiceUserId : null,
         });
         
       if (error) {

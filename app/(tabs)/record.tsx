@@ -42,6 +42,8 @@ import Constants from 'expo-constants';
 import Svg, { Path } from 'react-native-svg';
 import { posthog } from '@/posthog';
 import { useAuth } from '@/contexts/authContext';
+import { VoiceSelector } from '@/components/audio/VoiceSelector';
+import { voiceChanger } from '@/lib/elevenLabs';
 const { width } = Dimensions.get('window');
 
 const WaveBar = ({
@@ -333,12 +335,14 @@ const DetailsView = ({
   userGroups,
   selectedGroupId,
   onGroupChange,
+  currentUserId,
+  currentUserHasVoiceClone,
 }: {
   duration: number;
   title: string;
   setTitle: (text: string) => void;
   onBack: () => void;
-  onSave: (isPrivate: boolean, groupId?: string | null) => void;
+  onSave: (isPrivate: boolean, groupId?: string | null, selectedVoiceUserId?: string | null, selectedVoiceId?: string | null, clonedAudioUri?: string | null) => void;
   isSaving: boolean;
   recordingUri: string | null;
   selectedTag: string;
@@ -349,6 +353,8 @@ const DetailsView = ({
   userGroups: { id: string; name: string; member_count: { count: number } }[];
   selectedGroupId: string | null;
   onGroupChange: (groupId: string | null) => void;
+  currentUserId: string;
+  currentUserHasVoiceClone: boolean;
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showTagsModal, setShowTagsModal] = useState(false);
@@ -359,6 +365,151 @@ const DetailsView = ({
   const sound = useRef<Audio.Sound | null>(null);
   const [showTranscriptionModal, setShowTranscriptionModal] = useState(false);
   const [showBackWarning, setShowBackWarning] = useState(false);
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
+  const [selectedVoiceUserId, setSelectedVoiceUserId] = useState<string | null>(null);
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [clonedAudioUri, setClonedAudioUri] = useState<string | null>(null);
+  const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
+  const clonedSound = useRef<Audio.Sound | null>(null);
+
+  // Fetch group members when group is selected
+  useEffect(() => {
+    const fetchGroupMembers = async () => {
+      if (!selectedGroupId) {
+        setGroupMembers([]);
+        setSelectedVoiceUserId(null);
+        setSelectedVoiceId(null);
+        setClonedAudioUri(null);
+        return;
+      }
+
+      setLoadingMembers(true);
+      try {
+        const { data: members, error } = await supabase
+          .from('group_members')
+          .select(
+            `
+            user_id,
+            profiles!inner (
+              id,
+              username,
+              avatar_url,
+              voice_clone_id,
+              voice_clone_status
+            )
+          `
+          )
+          .eq('group_id', selectedGroupId);
+
+        if (error) throw error;
+
+        // Format the data
+        const formattedMembers = members?.map((m: any) => ({
+          id: m.profiles.id,
+          username: m.profiles.username,
+          avatar_url: m.profiles.avatar_url,
+          voice_clone_id: m.profiles.voice_clone_id,
+          voice_clone_status: m.profiles.voice_clone_status,
+        })) || [];
+
+        console.log('Fetched group members:', formattedMembers.length);
+        console.log('Members data:', formattedMembers);
+        setGroupMembers(formattedMembers);
+      } catch (error) {
+        console.error('Error fetching group members:', error);
+        setGroupMembers([]);
+      } finally {
+        setLoadingMembers(false);
+      }
+    };
+
+    fetchGroupMembers();
+  }, [selectedGroupId]);
+
+  // Auto-generate voice preview when voice is selected
+  useEffect(() => {
+    // Reset and regenerate when voice selection changes
+    setClonedAudioUri(null);
+    if (clonedSound.current) {
+      clonedSound.current.unloadAsync();
+      clonedSound.current = null;
+    }
+
+    // Auto-generate if a different voice is selected
+    if (selectedVoiceId && selectedVoiceUserId && selectedVoiceUserId !== currentUserId && recordingUri) {
+      handleGenerateVoicePreview();
+    }
+  }, [selectedVoiceId, selectedVoiceUserId]);
+
+  // Generate voice preview
+  const handleGenerateVoicePreview = async () => {
+    console.log('Generating voice preview:', { 
+      selectedVoiceId,
+      hasRecordingUri: !!recordingUri,
+      recordingUri
+    });
+    
+    if (!selectedVoiceId || !recordingUri) {
+      console.log('Skipping voice generation - no voice selected or no recording');
+      return;
+    }
+
+    setIsGeneratingVoice(true);
+    try {
+      console.log('Calling voiceChanger with:', { 
+        audioUri: recordingUri, 
+        voiceId: selectedVoiceId 
+      });
+      const result = await voiceChanger(recordingUri, selectedVoiceId);
+      
+      if (!result.success || !result.audioUri) {
+        throw new Error(result.error || 'Failed to generate voice preview');
+      }
+
+      setClonedAudioUri(result.audioUri);
+      
+      // Automatically play the cloned audio after generation
+      setTimeout(async () => {
+        try {
+          await Audio.setAudioModeAsync({
+            playsInSilentModeIOS: true,
+            staysActiveInBackground: true,
+            shouldDuckAndroid: false,
+            playThroughEarpieceAndroid: false,
+            allowsRecordingIOS: false,
+          });
+
+          const { sound: newSound } = await Audio.Sound.createAsync(
+            { uri: result.audioUri! },
+            { shouldPlay: true }
+          );
+
+          clonedSound.current = newSound;
+          setIsPlaying(true);
+
+          newSound.setOnPlaybackStatusUpdate((status) => {
+            if (!status.isLoaded) return;
+            if (status.didJustFinish) {
+              setIsPlaying(false);
+              clonedSound.current?.unloadAsync();
+              clonedSound.current = null;
+            }
+          });
+        } catch (playError) {
+          console.error('Error auto-playing preview:', playError);
+        }
+      }, 500);
+    } catch (error) {
+      console.error('Error generating voice preview:', error);
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to generate voice preview'
+      );
+    } finally {
+      setIsGeneratingVoice(false);
+    }
+  };
 
   // Add cleanup on navigation
   useFocusEffect(
@@ -406,8 +557,12 @@ const DetailsView = ({
   // Match StoryCard playback using Expo Audio.Sound
   const playRecording = async () => {
     try {
-      if (!recordingUri) {
-        console.error('No recording URI available');
+      // Use cloned audio if available, otherwise use original recording
+      const audioToPlay = clonedAudioUri || recordingUri;
+      const soundRef = clonedAudioUri ? clonedSound : sound;
+
+      if (!audioToPlay) {
+        console.error('No audio URI available');
         return;
       }
 
@@ -421,21 +576,21 @@ const DetailsView = ({
       });
 
       // Toggle play/pause using a single Sound instance
-      if (sound.current) {
-        const status = await sound.current.getStatusAsync();
+      if (soundRef.current) {
+        const status = await soundRef.current.getStatusAsync();
         if (status.isLoaded && status.isPlaying) {
-          await sound.current.pauseAsync();
+          await soundRef.current.pauseAsync();
           setIsPlaying(false);
         } else {
-          await sound.current.playAsync();
+          await soundRef.current.playAsync();
           setIsPlaying(true);
         }
         return;
       }
 
-      // Create and play sound from recording URI
+      // Create and play sound from URI
       const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: recordingUri },
+        { uri: audioToPlay },
         {
           progressUpdateIntervalMillis: 1000,
           shouldPlay: true,
@@ -448,7 +603,7 @@ const DetailsView = ({
       );
 
       await newSound.setVolumeAsync(1.0);
-      sound.current = newSound;
+      soundRef.current = newSound;
       setIsPlaying(true);
 
       newSound.setOnPlaybackStatusUpdate((status) => {
@@ -456,8 +611,8 @@ const DetailsView = ({
 
         if (status.didJustFinish) {
           setIsPlaying(false);
-          sound.current?.unloadAsync();
-          sound.current = null;
+          soundRef.current?.unloadAsync();
+          soundRef.current = null;
         }
       });
     } catch (error) {
@@ -468,6 +623,12 @@ const DetailsView = ({
           await sound.current.unloadAsync();
         } catch {}
         sound.current = null;
+      }
+      if (clonedSound.current) {
+        try {
+          await clonedSound.current.unloadAsync();
+        } catch {}
+        clonedSound.current = null;
       }
     }
   };
@@ -480,22 +641,32 @@ const DetailsView = ({
           console.error('Error unloading sound on cleanup:', error);
         });
       }
+      if (clonedSound.current) {
+        clonedSound.current.unloadAsync().catch((error) => {
+          console.error('Error unloading cloned sound on cleanup:', error);
+        });
+      }
     };
   }, []);
 
   return (
     <View style={styles.detailsContainer}>
-      <View style={styles.detailsContent}>
-        {/* Back button */}
-        <View style={styles.detailsTopBar}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => setShowBackWarning(true)}
-          >
-            <ArrowLeft size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+      {/* Back button - Fixed position */}
+      <View style={styles.detailsTopBar}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => setShowBackWarning(true)}
+        >
+          <ArrowLeft size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
 
+      {/* Scrollable Content */}
+      <ScrollView
+        style={styles.detailsScrollView}
+        contentContainerStyle={styles.detailsContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Rest of the content */}
         <View style={styles.titleSection}>
           <Typography variant="h1" style={styles.titleLabel} numberOfLines={1}>
@@ -624,6 +795,45 @@ const DetailsView = ({
                 </TouchableOpacity>
               </View>
             )}
+          </View>
+
+          {/* Voice Selection - Show if group is selected and any member has voice clone */}
+          {selectedGroupId && groupMembers.length > 0 && groupMembers.some(m => m.voice_clone_status === 'ready') && (
+            <>
+              <VoiceSelector
+                groupMembers={groupMembers}
+                selectedVoiceUserId={selectedVoiceUserId}
+                currentUserId={currentUserId}
+                onSelectVoice={(userId, voiceId) => {
+                  setSelectedVoiceUserId(userId);
+                  setSelectedVoiceId(voiceId);
+                }}
+              />
+              
+              {/* Voice Preview Status */}
+              {selectedVoiceId && selectedVoiceUserId !== currentUserId && (
+                <View style={styles.voicePreviewContainer}>
+                  {isGeneratingVoice ? (
+                    <View style={styles.generatingContainer}>
+                      <ActivityIndicator size="small" color="#FF9B71" />
+                      <Typography variant="body" style={styles.generatingText}>
+                        Converting to {groupMembers.find(m => m.id === selectedVoiceUserId)?.username}'s voice...
+                      </Typography>
+                    </View>
+                  ) : clonedAudioUri ? (
+                    <View style={styles.previewReadyContainer}>
+                      <Check size={18} color="#4CAF50" />
+                      <Typography variant="body" style={styles.previewReadyText}>
+                        ✨ Voice converted! Tap play above to hear it in {groupMembers.find(m => m.id === selectedVoiceUserId)?.username}'s voice
+                      </Typography>
+                    </View>
+                  ) : null}
+                </View>
+              )}
+            </>
+          )}
+
+          <View style={styles.optionBox}>
 
             {/* Check if user has no groups and college is "None of the Above" */}
             {userCollege === 'None of the Above' && userGroups.length === 0 ? (
@@ -658,7 +868,7 @@ const DetailsView = ({
               /* Regular Post Recording Button */
               <TouchableOpacity
                 style={styles.postButton}
-                onPress={() => onSave(isFriendsOnly, selectedGroupId)}
+                onPress={() => onSave(isFriendsOnly, selectedGroupId, selectedVoiceUserId, selectedVoiceId, clonedAudioUri)}
                 disabled={isSaving}
               >
                 <Typography variant="body" style={styles.postText}>
@@ -701,91 +911,92 @@ const DetailsView = ({
           transcription={transcription}
         />
 
-        {/* Warning Modal for Back Button */}
-        <Modal
-          visible={showBackWarning}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowBackWarning(false)}
+      </ScrollView>
+
+      {/* Warning Modal for Back Button */}
+      <Modal
+        visible={showBackWarning}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBackWarning(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: 'rgba(0,0,0,0.4)',
+          }}
         >
           <View
             style={{
-              flex: 1,
-              justifyContent: 'center',
+              backgroundColor: '#fff',
+              borderRadius: 20,
+              padding: 24,
+              width: 300,
               alignItems: 'center',
-              backgroundColor: 'rgba(0,0,0,0.4)',
             }}
           >
-            <View
-              style={{
-                backgroundColor: '#fff',
-                borderRadius: 20,
-                padding: 24,
-                width: 300,
-                alignItems: 'center',
-              }}
+            <Typography
+              variant="h2"
+              style={{ textAlign: 'center', marginBottom: 12 }}
             >
-              <Typography
-                variant="h2"
-                style={{ textAlign: 'center', marginBottom: 12 }}
+              discard recording?
+            </Typography>
+            <Typography
+              variant="body"
+              style={{ textAlign: 'center', marginBottom: 24 }}
+            >
+              are you sure you want to go back? your current post will be
+              lost.
+            </Typography>
+            <View style={{ flexDirection: 'row', gap: 16 }}>
+              <TouchableOpacity
+                style={{
+                  paddingVertical: 12,
+                  paddingHorizontal: 24,
+                  borderRadius: 26,
+                  backgroundColor: '#E4E4E4',
+                  minWidth: 100,
+                  alignItems: 'center',
+                }}
+                onPress={() => setShowBackWarning(false)}
               >
-                discard recording?
-              </Typography>
-              <Typography
-                variant="body"
-                style={{ textAlign: 'center', marginBottom: 24 }}
+                <Typography
+                  variant="body"
+                  style={{ color: '#000000', fontWeight: '600' }}
+                >
+                  cancel
+                </Typography>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  paddingVertical: 12,
+                  paddingHorizontal: 24,
+                  borderRadius: 26,
+                  backgroundColor: '#1D1D1D',
+                  minWidth: 100,
+                  alignItems: 'center',
+                }}
+                onPress={async () => {
+                  setShowBackWarning(false);
+                  // Small delay to ensure modal closes properly
+                  setTimeout(() => {
+                    onRestart();
+                  }, 100);
+                }}
               >
-                are you sure you want to go back? your current post will be
-                lost.
-              </Typography>
-              <View style={{ flexDirection: 'row', gap: 16 }}>
-                <TouchableOpacity
-                  style={{
-                    paddingVertical: 12,
-                    paddingHorizontal: 24,
-                    borderRadius: 26,
-                    backgroundColor: '#E4E4E4',
-                    minWidth: 100,
-                    alignItems: 'center',
-                  }}
-                  onPress={() => setShowBackWarning(false)}
+                <Typography
+                  variant="body"
+                  style={{ color: '#FFFFFF', fontWeight: '600' }}
                 >
-                  <Typography
-                    variant="body"
-                    style={{ color: '#000000', fontWeight: '600' }}
-                  >
-                    cancel
-                  </Typography>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    paddingVertical: 12,
-                    paddingHorizontal: 24,
-                    borderRadius: 26,
-                    backgroundColor: '#1D1D1D',
-                    minWidth: 100,
-                    alignItems: 'center',
-                  }}
-                  onPress={async () => {
-                    setShowBackWarning(false);
-                    // Small delay to ensure modal closes properly
-                    setTimeout(() => {
-                      onRestart();
-                    }, 100);
-                  }}
-                >
-                  <Typography
-                    variant="body"
-                    style={{ color: '#FFFFFF', fontWeight: '600' }}
-                  >
-                    yes, discard
-                  </Typography>
-                </TouchableOpacity>
-              </View>
+                  yes, discard
+                </Typography>
+              </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-      </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -871,6 +1082,7 @@ export default function RecordScreen() {
     { id: string; name: string; member_count: { count: number } }[]
   >([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [currentUserHasVoiceClone, setCurrentUserHasVoiceClone] = useState(false);
   const { user } = useAuth();
   const recording = useRef<Audio.Recording | null>(null);
   const recordingUri = useRef<string | null>(null);
@@ -1017,11 +1229,12 @@ export default function RecordScreen() {
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('college')
+          .select('college, voice_clone_status')
           .eq('id', user.id)
           .single();
 
         setUserCollege(profile?.college || null);
+        setCurrentUserHasVoiceClone(profile?.voice_clone_status === 'ready');
 
         // Fetch user's groups
         const { data: groups } = await supabase
@@ -1214,7 +1427,13 @@ export default function RecordScreen() {
     }
   };
 
-  const handleSave = async (isPrivate: boolean) => {
+  const handleSave = async (
+    isPrivate: boolean,
+    groupId?: string | null,
+    selectedVoiceUserId?: string | null,
+    selectedVoiceId?: string | null,
+    clonedAudioUri?: string | null
+  ) => {
     if (!recordingUri.current) {
       console.error('No recording available');
       return;
@@ -1278,6 +1497,9 @@ export default function RecordScreen() {
         isPrivate: isPrivate,
         isFriendsOnly: userCollege === 'None of the Above' ? true : isPrivate,
         groupId: selectedGroupId,
+        selectedVoiceUserId: selectedVoiceUserId,
+        selectedVoiceId: selectedVoiceId,
+        clonedAudioUri: clonedAudioUri,
       });
       mixpanel.track('Audio recording posted');
 
@@ -1420,6 +1642,8 @@ export default function RecordScreen() {
           userGroups={userGroups}
           selectedGroupId={selectedGroupId}
           onGroupChange={setSelectedGroupId}
+          currentUserId={user?.id || ''}
+          currentUserHasVoiceClone={currentUserHasVoiceClone}
         />
       </Modal>
       <SuccessModal
@@ -1681,6 +1905,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     width: '100%',
   },
+  detailsScrollView: {
+    flex: 1,
+  },
+  detailsContent: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  detailsTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 26,
+    paddingTop: 60,
+    paddingBottom: 10,
+    backgroundColor: '#FFFFFF',
+    zIndex: 10,
+  },
   waveBar: {
     width: 3,
     borderRadius: 15.6257,
@@ -1741,17 +1982,6 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: '#FF0000',
-  },
-  detailsContent: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 80,
-  },
-  detailsTopBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    paddingHorizontal: 10,
   },
   backButton: {
     width: 44,
@@ -2408,5 +2638,41 @@ const styles = StyleSheet.create({
   },
   disabledPostText: {
     color: '#8A8E8F',
+  },
+  voicePreviewContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  generatingContainer: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  generatingText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#E65100',
+    fontFamily: 'Nunito-SemiBold',
+  },
+  previewReadyContainer: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  previewReadyText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2E7D32',
+    fontFamily: 'Nunito-SemiBold',
+    flex: 1,
   },
 });
