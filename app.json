@@ -18,7 +18,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "media.hilo.hearmeoutcopy",
       "buildNumber": "1",
-      "usesAppleSignIn": true,
+      "usesAppleSignIn": false,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Copy That needs microphone access to record and share your voice stories with friends. Your audio recordings are the core feature of our social platform.",
         "NSCameraUsageDescription": "We need access to your camera to take profile pictures",
@@ -36,7 +36,6 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "@config-plugins/react-native-adjust",
       "expo-tracking-transparency",
       "expo-font",
       "expo-localization",

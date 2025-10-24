@@ -14,7 +14,7 @@ import {
   AudioPlaybackProvider,
   useAudioPlayback,
 } from '@/lib/AudioPlaybackContext';
-import { Adjust, AdjustConfig, AdjustEvent } from 'react-native-adjust';
+// import { Adjust, AdjustConfig, AdjustEvent } from 'react-native-adjust';
 import { Platform, Text, View } from 'react-native';
 import { MenuProvider } from 'react-native-popup-menu';
 import { configureNotifications } from '@/lib/notifications';
@@ -34,64 +34,64 @@ const adjustAppToken = '9obru9zeai2o';
 
 SplashScreen.preventAutoHideAsync();
 
-// Adjust event tracking functions
-export const trackLetsGoClicked = () => {
-  const event = new AdjustEvent('3m9ioy');
-  Adjust.trackEvent(event);
-  console.log("Let's Go Clicked (Onboarding Step 1) tracked");
-};
+// Adjust event tracking functions - temporarily disabled to prevent crashes
+// export const trackLetsGoClicked = () => {
+//   const event = new AdjustEvent('3m9ioy');
+//   Adjust.trackEvent(event);
+//   console.log("Let's Go Clicked (Onboarding Step 1) tracked");
+// };
 
-export const trackEmailEntered = () => {
-  const event = new AdjustEvent('pspayu');
-  Adjust.trackEvent(event);
-  console.log('Email Entered (Onboarding 2) tracked');
-};
+// export const trackEmailEntered = () => {
+//   const event = new AdjustEvent('pspayu');
+//   Adjust.trackEvent(event);
+//   console.log('Email Entered (Onboarding 2) tracked');
+// };
 
-export const trackAccountCreated = () => {
-  const event = new AdjustEvent('7i2fi0');
-  Adjust.trackEvent(event);
-  console.log('Account Created (Onboarding 3) tracked');
-};
+// export const trackAccountCreated = () => {
+//   const event = new AdjustEvent('7i2fi0');
+//   Adjust.trackEvent(event);
+//   console.log('Account Created (Onboarding 3) tracked');
+// };
 
-export const trackPermissionsGranted = () => {
-  const event = new AdjustEvent('tbz8na');
-  Adjust.trackEvent(event);
-  console.log('Permissions Granted tracked');
-};
+// export const trackPermissionsGranted = () => {
+//   const event = new AdjustEvent('tbz8na');
+//   Adjust.trackEvent(event);
+//   console.log('Permissions Granted tracked');
+// };
 
-export const trackAudioPosted = () => {
-  try {
-    const event = new AdjustEvent('aou9vt');
-    Adjust.trackEvent(event);
-    console.log('Adjust Audio Posted event tracked');
-  } catch (error) {
-    console.log('Adjust error :', error);
-  }
-};
+// export const trackAudioPosted = () => {
+//   try {
+//     const event = new AdjustEvent('aou9vt');
+//     Adjust.trackEvent(event);
+//     console.log('Adjust Audio Posted event tracked');
+//   } catch (error) {
+//     console.log('Adjust error :', error);
+//   }
+// };
 
-export const trackD1Retention = () => {
-  const event = new AdjustEvent('xel8sb');
-  Adjust.trackEvent(event);
-  console.log('D1 retention event tracked');
-};
+// export const trackD1Retention = () => {
+//   const event = new AdjustEvent('xel8sb');
+//   Adjust.trackEvent(event);
+//   console.log('D1 retention event tracked');
+// };
 
-export const trackD7Retention = () => {
-  const event = new AdjustEvent('302shb');
-  Adjust.trackEvent(event);
-  console.log('D7 retention event tracked');
-};
+// export const trackD7Retention = () => {
+//   const event = new AdjustEvent('302shb');
+//   Adjust.trackEvent(event);
+//   console.log('D7 retention event tracked');
+// };
 
-export const trackReactionPosted = () => {
-  const event = new AdjustEvent('nb33xx');
-  Adjust.trackEvent(event);
-  console.log('Reaction posted event tracked');
-};
+// export const trackReactionPosted = () => {
+//   const event = new AdjustEvent('nb33xx');
+//   Adjust.trackEvent(event);
+//   console.log('Reaction posted event tracked');
+// };
 
-export const trackInviteSent = () => {
-  const event = new AdjustEvent('1nngq9');
-  Adjust.trackEvent(event);
-  console.log('Invite Sent event tracked');
-};
+// export const trackInviteSent = () => {
+//   const event = new AdjustEvent('1nngq9');
+//   Adjust.trackEvent(event);
+//   console.log('Invite Sent event tracked');
+// };
 
 function RootLayoutNav() {
   const [session, setSession] = useState<Session | null>(null);
@@ -99,56 +99,62 @@ function RootLayoutNav() {
   const { setCurrentlyPlayingId, currentlyPlayingId } = useAudioPlayback();
   useEffect(() => {
     const initializeTracking = async () => {
-      if (Platform.OS === 'ios') {
-        const { status } =
-          await TrackingTransparency.getTrackingPermissionsAsync();
-        if (status !== 'granted') {
-          const request =
-            await TrackingTransparency.requestTrackingPermissionsAsync();
-          console.log('Tracking permission status:', request.status);
-        } else {
-          console.log('Tracking already granted');
+      try {
+        if (Platform.OS === 'ios') {
+          const { status } =
+            await TrackingTransparency.getTrackingPermissionsAsync();
+          if (status !== 'granted') {
+            const request =
+              await TrackingTransparency.requestTrackingPermissionsAsync();
+            console.log('Tracking permission status:', request.status);
+          } else {
+            console.log('Tracking already granted');
+          }
         }
-      }
 
-      const deviceID = await TrackingTransparency.getAdvertisingId();
-      initializeAdjustSDK();
+        const deviceID = await TrackingTransparency.getAdvertisingId();
+        // Temporarily disable Adjust to prevent crashes
+        // initializeAdjustSDK();
+      } catch (error) {
+        console.error('Error initializing tracking:', error);
+      }
     };
 
     initializeTracking();
   }, []);
 
-  const initializeAdjustSDK = () => {
-    try {
-      const adjustConfig = new AdjustConfig(
-        adjustAppToken,
-        AdjustConfig.EnvironmentProduction
-      );
-      Adjust.initSdk(adjustConfig);
-      adjustConfig.setLogLevel(AdjustConfig.LogLevelVerbose); // Optional: for debugging
-    } catch (error) {
-      console.log('Adjust error initializing Adjust SDK :', error);
-    }
-  };
+  // const initializeAdjustSDK = () => {
+  //   try {
+  //     const adjustConfig = new AdjustConfig(
+  //       adjustAppToken,
+  //       AdjustConfig.EnvironmentProduction
+  //     );
+  //     Adjust.initSdk(adjustConfig);
+  //     adjustConfig.setLogLevel(AdjustConfig.LogLevelVerbose); // Optional: for debugging
+  //   } catch (error) {
+  //     console.log('Adjust error initializing Adjust SDK :', error);
+  //   }
+  // };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
 
+      // Temporarily disable Adjust tracking to prevent crashes
       // Track D1 and D7 retention when user opens the app
-      if (session) {
-        const userCreatedAt = new Date(session.user.created_at);
-        const now = new Date();
-        const daysSinceCreation = Math.floor(
-          (now.getTime() - userCreatedAt.getTime()) / (1000 * 60 * 60 * 24)
-        );
+      // if (session) {
+      //   const userCreatedAt = new Date(session.user.created_at);
+      //   const now = new Date();
+      //   const daysSinceCreation = Math.floor(
+      //     (now.getTime() - userCreatedAt.getTime()) / (1000 * 60 * 60 * 24)
+      //   );
 
-        if (daysSinceCreation === 1) {
-          trackD1Retention();
-        } else if (daysSinceCreation === 7) {
-          trackD7Retention();
-        }
-      }
+      //   if (daysSinceCreation === 1) {
+      //     trackD1Retention();
+      //   } else if (daysSinceCreation === 7) {
+      //     trackD7Retention();
+      //   }
+      // }
     });
 
     // Listen for auth changes
