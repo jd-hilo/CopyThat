@@ -10,11 +10,12 @@
     "splash": {
       "image": "./assets/images/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#FFFFFF",
+      "imageWidth": 0.5
     },
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "media.hilo.hearmeoutcopy",
       "buildNumber": "1",
       "usesAppleSignIn": false,
