@@ -436,8 +436,7 @@ export function StoryCard({
   // If this card becomes the selected candidate, attempt immediate autoplay
   useEffect(() => {
     if (currentlyPlayingId === story.id && !isPlaying && !contextIsPlaying) {
-      // Use handlePlayPause2 for auto-play to avoid conflicts
-      handlePlayPause2(story);
+      handlePlayPause();
     }
   }, [currentlyPlayingId]);
 
@@ -688,13 +687,9 @@ export function StoryCard({
         } catch (e) {
           console.warn('Failed to stop/unload previous sound:', e);
         }
-        setSound(null);
-        setIsPlaying(false);
-        setCurrentlyPlayingId(null);
-        setContextIsPlaying(false);
       }
 
-      // Always create a new sound instance for auto-play
+      // Create new sound instance for auto-play
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: story.audioUrl },
         {
