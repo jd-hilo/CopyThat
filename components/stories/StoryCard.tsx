@@ -436,7 +436,8 @@ export function StoryCard({
   // If this card becomes the selected candidate, attempt immediate autoplay
   useEffect(() => {
     if (currentlyPlayingId === story.id && !isPlaying && !contextIsPlaying) {
-      handlePlayPause();
+      // Use handlePlayPause2 for auto-play to avoid conflicts
+      handlePlayPause2(story);
     }
   }, [currentlyPlayingId]);
 
@@ -661,8 +662,9 @@ export function StoryCard({
 
   const handleImageVisibility = (visible: boolean) => {
     if (visible && isFocused2?.id === story.id) {
-      // Only play if this story is the most visible and no other story is playing
-      if (!currentlyPlayingId || currentlyPlayingId === story.id) {
+      // Only auto-play if this story is the most visible and no other story is playing
+      // and we're not already playing this story
+      if ((!currentlyPlayingId || currentlyPlayingId === story.id) && !isPlaying) {
         handlePlayPause2(story);
       }
     } else if (!visible && isPlaying) {
@@ -692,47 +694,46 @@ export function StoryCard({
         setContextIsPlaying(false);
       }
 
-      // If no sound is loaded, load and play this story
-      if (!sound) {
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri: story.audioUrl },
-          {
-            shouldPlay: true,
-            volume: 1.0,
-            rate: 1.0,
-            isMuted: false,
-            isLooping: false,
-            shouldCorrectPitch: true,
-          }
-        );
+      // Always create a new sound instance for auto-play
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: story.audioUrl },
+        {
+          progressUpdateIntervalMillis: 1000,
+          shouldPlay: true,
+          volume: 1.0,
+          rate: 1.0,
+          isMuted: false,
+          isLooping: false,
+          shouldCorrectPitch: true,
+        }
+      );
 
-        setSound(newSound);
-        setIsPlaying(true);
-        setCurrentlyPlayingId(story.id);
-        setContextIsPlaying(true);
+      setSound(newSound);
+      setIsPlaying(true);
+      setCurrentlyPlayingId(story.id);
+      setContextIsPlaying(true);
 
-        newSound.setOnPlaybackStatusUpdate((status) => {
-          if (!status.isLoaded) return;
+      newSound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded) return;
 
-          setCurrentTime(status.positionMillis / 1000);
-          progress.value = status.positionMillis / (status.durationMillis || 1);
+        setCurrentTime(status.positionMillis / 1000);
+        progress.value = status.positionMillis / (status.durationMillis || 1);
 
-          if (status.didJustFinish) {
-            setIsPlaying(false);
-            setCurrentTime(0);
-            progress.value = 0;
+        if (status.didJustFinish) {
+          setIsPlaying(false);
+          setCurrentTime(0);
+          progress.value = 0;
 
-            setCurrentlyPlayingId(null);
-            setContextIsPlaying(false);
+          setCurrentlyPlayingId(null);
+          setContextIsPlaying(false);
 
-            // cleanup
-            newSound.unloadAsync();
-            setSound(null);
+          // cleanup
+          newSound.unloadAsync();
+          setSound(null);
 
-            onPlay?.(story);
-          }
-        });
-      }
+          onPlay?.(story);
+        }
+      });
     } catch (error) {
       console.error('Error playing audio:', error);
       setIsPlaying(false);
