@@ -21,6 +21,7 @@ import { configureNotifications } from '@/lib/notifications';
 import { posthog } from '../posthog';
 import { AuthProvider } from '@/contexts/authContext';
 import { Mixpanel } from 'mixpanel-react-native';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 const trackAutomaticEvents = false;
 const useNative = false;
 export const mixpanel = new Mixpanel(
@@ -249,14 +250,16 @@ export default function RootLayout() {
     );
   }
   return (
-    <MenuProvider>
-      <AuthProvider>
-        <AudioPlaybackProvider>
-          <RootLayoutNav />
-          <StatusBar style="auto" />
-        </AudioPlaybackProvider>
-      </AuthProvider>
-    </MenuProvider>
+    <ErrorBoundary>
+      <MenuProvider>
+        <AuthProvider>
+          <AudioPlaybackProvider>
+            <RootLayoutNav />
+            <StatusBar style="auto" />
+          </AudioPlaybackProvider>
+        </AuthProvider>
+      </MenuProvider>
+    </ErrorBoundary>
   );
 }
 

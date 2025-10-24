@@ -236,7 +236,7 @@ export default function HomeScreen() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (user) {
+      if (user?.id) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -258,6 +258,12 @@ export default function HomeScreen() {
 
   const fetchUserGroups = async () => {
     try {
+      // Don't fetch groups if user is not available
+      if (!user?.id) {
+        setUserGroups([]);
+        return;
+      }
+
       const { data: groups, error } = await supabase
         .from('groups')
         .select(
@@ -267,7 +273,7 @@ export default function HomeScreen() {
           member_count:group_members(count)
         `
         )
-        .eq('group_members.user_id', user?.id)
+        .eq('group_members.user_id', user.id)
         .order('created_at', { ascending: false }); // Order by most recent first
 
       if (error) throw error;
@@ -298,19 +304,21 @@ export default function HomeScreen() {
   useEffect(() => {
     if (userProfile) {
       fetchThoughts();
-    } else {
+    } else if (user?.id) {
       checkCollege();
     }
 
-    fetchUserGroups();
-  }, [isCollegeFeed, selectedGroupId, userProfile]);
+    if (user?.id) {
+      fetchUserGroups();
+    }
+  }, [isCollegeFeed, selectedGroupId, userProfile, user?.id]);
 
   useEffect(() => {
     const fetchPoints = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (user) {
+      if (user?.id) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('points')
@@ -354,7 +362,7 @@ export default function HomeScreen() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (user) {
+      if (user?.id) {
         const { data: friendIds } = await supabase
           .from('friend_requests')
           .select('sender_id, receiver_id')
@@ -480,7 +488,11 @@ export default function HomeScreen() {
   const fetchThoughts = async () => {
     console.log('fetching thoughts :', user);
     console.log('fetch thoughts 1');
-    if (!user) return;
+    if (!user?.id) {
+      setThoughts([]);
+      setLoading(false);
+      return;
+    }
     console.log('fetch thoughts 2');
     setLoading(true);
     try {
@@ -969,7 +981,7 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
                   const {
                     data: { user },
                   } = await supabase.auth.getUser();
-                  if (!user) return;
+                  if (!user?.id) return;
 
                   await supabase
                     .from('group_members')
@@ -1325,7 +1337,7 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (user) {
+      if (user?.id) {
         const { data: friendIds } = await supabase
           .from('friend_requests')
           .select('sender_id, receiver_id')

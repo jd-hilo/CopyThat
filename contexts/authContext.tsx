@@ -82,25 +82,57 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   console.log('session :', session, user);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        setUser(session?.user);
-      }
-    });
-    supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Auth session error:', error);
+          return;
+        }
         setSession(session);
         if (session?.user) {
           setUser(session?.user);
         }
-      } else {
-        router.replace('/');
+        setIsInitialized(true);
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        setIsInitialized(true);
+      }
+    };
+
+    initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      try {
+        if (session) {
+          setSession(session);
+          if (session?.user) {
+            setUser(session?.user);
+          }
+        } else {
+          // Don't navigate immediately, let the component handle the redirect
+          setUser(null);
+          setUserProfile(null);
+        }
+      } catch (error) {
+        console.error('Auth state change error:', error);
       }
     });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
+
+  // Set initialized after the first auth check
+  useEffect(() => {
+    if (isInitialized) {
+      setLoading(false);
+    }
+  }, [isInitialized]);
   console.log('user ,user profile :', user, userProfile);
 
   // 🔹 Load from AsyncStorage first
@@ -128,27 +160,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Also check Supabase session in case of refresh
     const getSession = async () => {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
-      if (error) console.error(error);
-
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        setUser(session.user);
-        setUserProfile(profile);
-
-        // 🔹 Cache session & profile
-        await AsyncStorage.setItem('session', JSON.stringify(session));
-        if (profile) {
-          await AsyncStorage.setItem('profile', JSON.stringify(profile));
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Supabase session error:', error);
+          return;
         }
+
+        if (session?.user) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError) {
+            console.error('Profile fetch error:', profileError);
+          }
+
+          setUser(session.user);
+          setUserProfile(profile);
+
+          // 🔹 Cache session & profile
+          try {
+            await AsyncStorage.setItem('session', JSON.stringify(session));
+            if (profile) {
+              await AsyncStorage.setItem('profile', JSON.stringify(profile));
+            }
+          } catch (cacheError) {
+            console.error('Cache error:', cacheError);
+          }
+        }
+      } catch (error) {
+        console.error('Error in getSession:', error);
       }
     };
 
@@ -159,27 +206,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       async (_event, session: Session | null) => {
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+        try {
+          if (session?.user) {
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
 
-          setUser(session.user);
-          setUserProfile(profile);
+            if (profileError) {
+              console.error('Profile fetch error in auth change:', profileError);
+            }
 
-          // Cache session and profile
-          await AsyncStorage.setItem('session', JSON.stringify(session));
-          if (profile) {
-            await AsyncStorage.setItem('profile', JSON.stringify(profile));
+            setUser(session.user);
+            setUserProfile(profile);
+
+            // Cache session and profile
+            try {
+              await AsyncStorage.setItem('session', JSON.stringify(session));
+              if (profile) {
+                await AsyncStorage.setItem('profile', JSON.stringify(profile));
+              }
+            } catch (cacheError) {
+              console.error('Cache error in auth change:', cacheError);
+            }
+          } else {
+            // Clear cache when logged out - don't navigate here
+            setUser(null);
+            setUserProfile(null);
+            try {
+              await AsyncStorage.removeItem('session');
+              await AsyncStorage.removeItem('profile');
+            } catch (cacheError) {
+              console.error('Cache clear error:', cacheError);
+            }
           }
-        } else {
-          // Clear cache when logged out
-          setUser(null);
-          setUserProfile(null);
-          await AsyncStorage.removeItem('session');
-          await AsyncStorage.removeItem('profile');
+        } catch (error) {
+          console.error('Error in auth state change:', error);
         }
       }
     );
@@ -235,7 +298,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signOut,
       }}
     >
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

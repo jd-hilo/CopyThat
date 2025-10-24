@@ -77,11 +77,11 @@ export default function WelcomeScreen() {
           });
         setTimeout(() => {
           setIsLoading(false);
-        }, 1000);
+        }, 1500);
       } else {
         setTimeout(() => {
           setIsLoading(false);
-        }, 1000);
+        }, 1500);
       }
     });
 
@@ -105,13 +105,14 @@ export default function WelcomeScreen() {
     router.push('/(auth)/sign-up');
   };
 
-  // if (isLoading) {
-  //   return (
-  //     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-  //       <SpinningHeadphone size={32} />
-  //     </View>
-  //   );
-  // }
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <SpinningHeadphone size={32} />
+      </View>
+    );
+  }
+  
   if (user) {
     return <Redirect href={'/(tabs)'} />;
   }
