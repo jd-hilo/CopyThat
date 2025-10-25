@@ -44,6 +44,14 @@
         {
           "photosPermission": "Copy That would like access to your photos to upload a profile picture and personalize your account."
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "copythat",
+          "organization": "hilo-media-oy"
+        }
       ]
     ],
     "experiments": {

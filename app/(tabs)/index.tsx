@@ -61,7 +61,7 @@ import { useAudioPlayback } from '@/lib/AudioPlaybackContext';
 import { useAuth } from '@/contexts/authContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { mixpanel } from '../_layout';
-
+import * as Sentry from '@sentry/react-native';
 type Story = Database['public']['Tables']['stories']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type Group = Database['public']['Tables']['groups']['Row'];
@@ -176,7 +176,9 @@ export default function HomeScreen() {
   const [showVoiceCloningModal, setShowVoiceCloningModal] = useState(false);
   // When the playing story changes, scroll it to the top anchor
   useEffect(() => {
+    Sentry.captureEvent(__DEV__ ? 'Dev Mode' : 'Production Mode');
     if (!currentlyPlayingId) return;
+
     const y = itemPositionsRef.current[currentlyPlayingId];
     if (typeof y === 'number' && scrollRef.current) {
       scrollRef.current.scrollToOffset({
@@ -193,14 +195,14 @@ export default function HomeScreen() {
           .select('voice_clone_status')
           .eq('id', user.id)
           .single();
-        
+
         console.log('Voice clone status check:', profile?.voice_clone_status);
         setUserHasVoiceClone(profile?.voice_clone_status === 'ready');
       }
     };
 
     if (userProfile) {
-      mixpanel.identify(userProfile.id);
+     // mixpanel.identify(userProfile.id);
       //posthog.identify(userProfile.id, { user: userProfile });
       // Check voice clone status from database (not cached profile)
       checkVoiceCloneStatus();
@@ -379,7 +381,7 @@ export default function HomeScreen() {
   const formatStory = (story: StoryWithUser): FormattedStory => {
     // Use cloned voice user's info if voice was cloned, otherwise use original poster
     const displayUser = story.cloned_voice_user || story.user;
-    
+
     return {
       id: story.id,
       title: story.title,
@@ -401,7 +403,8 @@ export default function HomeScreen() {
         id: displayUser.id,
         name: displayUser.full_name || displayUser.username,
         username: displayUser.username,
-        profileImage: displayUser.avatar_url || 'https://via.placeholder.com/150',
+        profileImage:
+          displayUser.avatar_url || 'https://via.placeholder.com/150',
         college: displayUser.college,
         friend_count: displayUser.friend_count || 0,
         friend_request_count: displayUser.friend_request_count || 0,
@@ -1306,10 +1309,10 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
           >
             be the first to share a thought!
           </Typography>
-            <TouchableOpacity
-              style={styles.recordNowButton}
-              onPress={() => router.push('/record')}
-            >
+          <TouchableOpacity
+            style={styles.recordNowButton}
+            onPress={() => router.push('/record')}
+          >
             <Typography variant="h2" style={styles.recordNowButtonText}>
               record now 🎙️
             </Typography>
@@ -1425,7 +1428,10 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
 
               {/* Text and Button Container */}
               <View style={styles.textButtonContainer}>
-                <Typography variant="body" style={styles.voiceCloneRequiredSubtitle}>
+                <Typography
+                  variant="body"
+                  style={styles.voiceCloneRequiredSubtitle}
+                >
                   voice cloning is required to use the app
                 </Typography>
 
@@ -1444,21 +1450,20 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientBorder}
                   >
-                  <TouchableOpacity
-                    style={styles.inviteButton}
-                    onPress={() => setShowVoiceCloningModal(true)}
-                  >
-                    <Typography variant="h2" style={styles.inviteText}>
-                      🎙️ record voice
-                    </Typography>
-                  </TouchableOpacity>
-                </LinearGradient>
+                    <TouchableOpacity
+                      style={styles.inviteButton}
+                      onPress={() => setShowVoiceCloningModal(true)}
+                    >
+                      <Typography variant="h2" style={styles.inviteText}>
+                        🎙️ record voice
+                      </Typography>
+                    </TouchableOpacity>
+                  </LinearGradient>
+                </View>
               </View>
-
             </View>
           </View>
-        </View>
-      ) : (
+        ) : (
           <>
             <View style={styles.header}>
               <View style={styles.headerTop}>
@@ -1489,24 +1494,24 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
               </View>
             </View>
             <FlatList
-          ref={scrollRef}
-          data={thoughts}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          onScroll={(e) => {
-            savedOffsetRef.current = e.nativeEvent.contentOffset.y;
-          }}
-          scrollEventThrottle={16}
-          refreshControl={
-            <CustomRefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-            />
-          }
-          ListEmptyComponent={!loading ? renderEmptyState : null}
-          viewabilityConfig={viewabilityConfig}
-          onViewableItemsChanged={onViewableItemsChanged}
-          contentContainerStyle={styles.flatListContent}
+              ref={scrollRef}
+              data={thoughts}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.id}
+              onScroll={(e) => {
+                savedOffsetRef.current = e.nativeEvent.contentOffset.y;
+              }}
+              scrollEventThrottle={16}
+              refreshControl={
+                <CustomRefreshControl
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                />
+              }
+              ListEmptyComponent={!loading ? renderEmptyState : null}
+              viewabilityConfig={viewabilityConfig}
+              onViewableItemsChanged={onViewableItemsChanged}
+              contentContainerStyle={styles.flatListContent}
             />
             {loading && (thoughts?.length ?? 0) === 0 && (
               <View style={styles.loadingOverlay}>
@@ -1553,43 +1558,43 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
 
             {/* Group Actions FAB */}
             {selectedGroupId && !isCollegeFeed && (
-          <View style={styles.fabContainer}>
-            <TouchableOpacity
-              style={styles.fabButton}
-              onPress={() => setIsFabExpanded(!isFabExpanded)}
-            >
-              <MoreVertical size={24} color="#000000" />
-            </TouchableOpacity>
-
-            {isFabExpanded && (
-              <View style={styles.fabOptions}>
+              <View style={styles.fabContainer}>
                 <TouchableOpacity
-                  style={styles.fabOption}
-                  onPress={handleViewMembers}
+                  style={styles.fabButton}
+                  onPress={() => setIsFabExpanded(!isFabExpanded)}
                 >
-                  <Users size={20} color="#333A3C" />
-                  <Text style={styles.fabOptionText}>View Members</Text>
+                  <MoreVertical size={24} color="#000000" />
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.fabOption}
-                  onPress={handleShareGroup}
-                >
-                  <ShareIcon size={20} color="#333A3C" />
-                  <Text style={styles.fabOptionText}>Share Group</Text>
-                </TouchableOpacity>
+                {isFabExpanded && (
+                  <View style={styles.fabOptions}>
+                    <TouchableOpacity
+                      style={styles.fabOption}
+                      onPress={handleViewMembers}
+                    >
+                      <Users size={20} color="#333A3C" />
+                      <Text style={styles.fabOptionText}>View Members</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.fabOption}
-                  onPress={handleLeaveGroup}
-                >
-                  <LogOut size={20} color="#FF3B30" />
-                  <Text style={styles.fabOptionText}>Leave Group</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.fabOption}
+                      onPress={handleShareGroup}
+                    >
+                      <ShareIcon size={20} color="#333A3C" />
+                      <Text style={styles.fabOptionText}>Share Group</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.fabOption}
+                      onPress={handleLeaveGroup}
+                    >
+                      <LogOut size={20} color="#FF3B30" />
+                      <Text style={styles.fabOptionText}>Leave Group</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
-              )}
-            </View>
-          )}
+            )}
           </>
         )}
       </SafeAreaView>
@@ -1675,7 +1680,7 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
           console.log('Voice clone created on home screen:', voiceId);
           setUserHasVoiceClone(true);
           setShowVoiceCloningModal(false);
-          
+
           // Refresh user profile to get updated voice clone status
           if (user) {
             const { data: updatedProfile } = await supabase

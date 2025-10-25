@@ -22,6 +22,22 @@ import { posthog } from '../posthog';
 import { AuthProvider } from '@/contexts/authContext';
 import { Mixpanel } from 'mixpanel-react-native';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://4eb954acf463a58e6365c9eaf09007ef@o4510251294588928.ingest.us.sentry.io/4510251319164929',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+  integrations: [Sentry.feedbackIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 const trackAutomaticEvents = false;
 const useNative = false;
 export const mixpanel = new Mixpanel(
@@ -224,7 +240,7 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   const [loaded, error] = useFonts({
     'Nunito-Regular': require('../assets/fonts/Nunito-Regular.ttf'),
     'Nunito-Medium': require('../assets/fonts/Nunito-Medium.ttf'),
@@ -267,7 +283,7 @@ export default function RootLayout() {
       </MenuProvider>
     </ErrorBoundary>
   );
-}
+});
 
 export function TabLayout() {
   return (
