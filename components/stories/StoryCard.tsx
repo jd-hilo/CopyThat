@@ -536,6 +536,14 @@ export function StoryCard({
       }
 
       if (!sound) {
+        // Ensure iOS playback works in production (silent switch / category)
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: false,
+          playThroughEarpieceAndroid: false,
+          allowsRecordingIOS: false,
+        });
         // Create new sound instance if none exists
         const { sound: newSound } = await Audio.Sound.createAsync(
           { uri: story.audioUrl },
@@ -578,6 +586,13 @@ export function StoryCard({
           setCurrentlyPlayingId(null);
           setContextIsPlaying(false);
         } else {
+          await Audio.setAudioModeAsync({
+            playsInSilentModeIOS: true,
+            staysActiveInBackground: true,
+            shouldDuckAndroid: false,
+            playThroughEarpieceAndroid: false,
+            allowsRecordingIOS: false,
+          });
           await sound.playAsync();
           setIsPlaying(true);
           setCurrentlyPlayingId(story.id);
@@ -689,6 +704,14 @@ export function StoryCard({
         }
       }
 
+      // Ensure iOS playback works in production (silent switch / category)
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false,
+        allowsRecordingIOS: false,
+      });
       // Create new sound instance for auto-play
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: story.audioUrl },
