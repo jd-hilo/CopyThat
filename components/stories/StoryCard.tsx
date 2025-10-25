@@ -31,7 +31,6 @@ import { Typography } from '@/components/ui/Typography';
 import type { AudioStory } from '@/constants/mockData';
 import * as Haptics from 'expo-haptics';
 import { formatTimeAgo } from '@/utils/timeUtils';
-import { useAudioPlayer } from 'expo-audio';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -315,7 +314,6 @@ export function StoryCard({
     }
   };
   const sizeStyles = getSizeStyles();
-  const player = useAudioPlayer(story?.audioUrl);
 
   useEffect(() => {
     // Set up audio mode
@@ -674,21 +672,40 @@ export function StoryCard({
     onReaction(story);
   };
 
+  // Add refs for debouncing and timing
+  const visibilityPauseTimer = useRef<NodeJS.Timeout | null>(null);
+  const lastVisibleRef = useRef<boolean>(false);
+  const justStartedAtRef = useRef<number>(0);
+
   const handleImageVisibility = (visible: boolean) => {
+    lastVisibleRef.current = visible;
+
     if (visible && isFocused2?.id === story.id) {
+      // Cancel any pending pause if we became visible
+      if (visibilityPauseTimer.current) {
+        clearTimeout(visibilityPauseTimer.current);
+        visibilityPauseTimer.current = null;
+      }
       // Only auto-play if this story is the most visible and no other story is playing
-      // and we're not already playing this story
-      if ((!currentlyPlayingId || currentlyPlayingId === story.id) && !isPlaying) {
+      if (!currentlyPlayingId || currentlyPlayingId === story.id) {
         handlePlayPause2(story);
       }
     } else if (!visible && isPlaying) {
-      // Pause when the story becomes invisible
-      if (sound) {
-        sound.pauseAsync();
-        setIsPlaying(false);
-        setCurrentlyPlayingId(null);
-        setContextIsPlaying(false);
+      // Debounce pause to prevent immediate pause on visibility flicker
+      // Ignore pauses within 300ms of starting playback
+      if (Date.now() - justStartedAtRef.current < 300) return;
+
+      if (visibilityPauseTimer.current) {
+        clearTimeout(visibilityPauseTimer.current);
       }
+      visibilityPauseTimer.current = setTimeout(() => {
+        if (!lastVisibleRef.current && sound) {
+          sound.pauseAsync();
+          setIsPlaying(false);
+          setCurrentlyPlayingId(null);
+          setContextIsPlaying(false);
+        }
+      }, 250);
     }
   };
 
@@ -704,14 +721,6 @@ export function StoryCard({
         }
       }
 
-      // Ensure iOS playback works in production (silent switch / category)
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
-        allowsRecordingIOS: false,
-      });
       // Create new sound instance for auto-play
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: story.audioUrl },
@@ -730,6 +739,7 @@ export function StoryCard({
       setIsPlaying(true);
       setCurrentlyPlayingId(story.id);
       setContextIsPlaying(true);
+      justStartedAtRef.current = Date.now();
 
       newSound.setOnPlaybackStatusUpdate((status) => {
         if (!status.isLoaded) return;
