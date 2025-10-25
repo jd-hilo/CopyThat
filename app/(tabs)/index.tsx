@@ -1455,18 +1455,6 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
                 </LinearGradient>
               </View>
 
-              {/* Sign Out Button */}
-              <View style={styles.signOutButtonContainer}>
-                <TouchableOpacity
-                  style={styles.signOutButton}
-                  onPress={handleSignOut}
-                >
-                  <LogOut size={20} color="#FF3B30" />
-                  <Typography variant="body" style={styles.signOutText}>
-                    sign out
-                  </Typography>
-                </TouchableOpacity>
-              </View>
             </View>
           </View>
         </View>
@@ -2241,28 +2229,6 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     color: '#FFFFFF',
     textAlign: 'center',
-  },
-  signOutButtonContainer: {
-    width: 244,
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFE4E4',
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    gap: 8,
-  },
-  signOutText: {
-    fontFamily: 'Nunito',
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FF3B30',
-    textTransform: 'lowercase',
   },
   recordFabContainer: {
     position: 'absolute',

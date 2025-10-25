@@ -75,13 +75,9 @@ export default function WelcomeScreen() {
               // Optionally, you could route to the sign-up page if not already there
             }
           });
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 1500);
+        setIsLoading(false);
       } else {
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 1500);
+        setIsLoading(false);
       }
     });
 

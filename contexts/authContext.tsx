@@ -135,7 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [isInitialized]);
   console.log('user ,user profile :', user, userProfile);
 
-  // 🔹 Load from AsyncStorage first
+  // Load cached session immediately for faster startup
   useEffect(() => {
     const loadCachedSession = async () => {
       try {
@@ -149,22 +149,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (cachedProfile) {
           setUserProfile(JSON.parse(cachedProfile));
         }
+        setLoading(false); // Set loading to false immediately after loading cache
       } catch (err) {
         console.error('Error loading cached session:', err);
-      } finally {
         setLoading(false);
       }
     };
 
     loadCachedSession();
 
-    // Also check Supabase session in case of refresh
-    const getSession = async () => {
+    // Background session refresh (non-blocking)
+    const refreshSession = async () => {
       try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Supabase session error:', error);
           return;
@@ -177,29 +174,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .eq('id', session.user.id)
             .single();
 
-          if (profileError) {
-            console.error('Profile fetch error:', profileError);
-          }
-
-          setUser(session.user);
-          setUserProfile(profile);
-
-          // 🔹 Cache session & profile
-          try {
-            await AsyncStorage.setItem('session', JSON.stringify(session));
-            if (profile) {
+          if (!profileError && profile) {
+            setUser(session.user);
+            setUserProfile(profile);
+            
+            // Update cache
+            try {
+              await AsyncStorage.setItem('session', JSON.stringify(session));
               await AsyncStorage.setItem('profile', JSON.stringify(profile));
+            } catch (cacheError) {
+              console.error('Cache error:', cacheError);
             }
-          } catch (cacheError) {
-            console.error('Cache error:', cacheError);
           }
         }
       } catch (error) {
-        console.error('Error in getSession:', error);
+        console.error('Error refreshing session:', error);
       }
     };
 
-    getSession();
+    // Refresh session in background after a short delay
+    setTimeout(refreshSession, 100);
 
     // 🔹 Listen for auth changes
     const {

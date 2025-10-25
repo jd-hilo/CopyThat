@@ -34,7 +34,7 @@ import { supabase } from '@/lib/supabase';
 import { transcribeAudioFile } from '@/lib/transcription';
 import { useRouter } from 'expo-router';
 import { STORY_TAGS } from '@/constants/tags';
-import { mixpanel, trackAudioPosted } from './_layout';
+import { mixpanel } from './_layout';
 //import { showReactionNotificationModal } from '@/lib/notifications';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
@@ -1504,9 +1504,8 @@ export default function RecordScreen() {
       mixpanel.track('Audio recording posted');
 
       if (success) {
-        console.log('Adjust audio posted now posting analytics');
+        console.log('Audio posted successfully');
         setShowSuccessModal(true);
-        trackAudioPosted();
         // posthog.capture('audio_recording_posted', {
         //   user: {
         //     id: user?.id as string,

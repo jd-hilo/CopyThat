@@ -373,9 +373,6 @@ export function VoiceCloningModal({
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
             <X size={24} color="#000" />
           </TouchableOpacity>
-          <Typography variant="h2" style={styles.headerTitle}>
-            Record Your Voice
-          </Typography>
           <View style={{ width: 40 }} />
         </View>
 
@@ -383,6 +380,16 @@ export function VoiceCloningModal({
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
+          {/* Title and Subheader */}
+          <View style={styles.titleContainer}>
+            <Typography variant="h2" style={styles.mainTitle}>
+              record your voice
+            </Typography>
+            <Typography variant="body" style={styles.subtitle}>
+              we need this for the app to work
+            </Typography>
+          </View>
+
           {/* Instructions */}
           <View style={styles.instructionsContainer}>
             <Typography variant="h3" style={styles.instructionsTitle}>
@@ -529,13 +536,34 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  mainTitle: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: '#000000',
+    textAlign: 'center',
+    textTransform: 'lowercase',
+    marginBottom: 8,
+    lineHeight: 33,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#8A8E8F',
+    textAlign: 'center',
+    fontFamily: 'Nunito-SemiBold',
   },
   instructionsContainer: {
     backgroundColor: '#F6F6F6',
     borderRadius: 20,
     padding: 20,
-    marginBottom: 30,
+    marginBottom: 20,
   },
   instructionsTitle: {
     fontSize: 18,
@@ -550,7 +578,7 @@ const styles = StyleSheet.create({
   },
   durationContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   durationText: {
     fontSize: 16,
@@ -570,7 +598,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: 80,
     marginTop: 0,
-    marginBottom: 30,
+    marginBottom: 20,
     gap: 4,
     paddingHorizontal: 20,
     paddingVertical: 20,
@@ -644,7 +672,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-    marginTop: 20,
+    marginTop: 0,
   },
   submitButtonDisabled: {
     opacity: 0.6,
