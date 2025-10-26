@@ -55,6 +55,8 @@ import {
   MenuTrigger,
 } from 'react-native-popup-menu';
 import VisibilitySensor from '@svanboxel/visibility-sensor-react-native';
+import { captureEvent, captureException } from '@sentry/react-native';
+import { ca } from 'date-fns/locale';
 
 const EMOJIS = {
   heart: '❤️',
@@ -489,19 +491,22 @@ export function StoryCard({
   };
 
   const handlePlayPause = async (e?: any) => {
-    if (e) {
-      e.stopPropagation();
-    }
-
+    captureException('story_card_play_pause_clicked');
+    console.log('Play/Pause clicked for story:', story.id);
     try {
       // If another story is playing, stop it first
+      captureException('If another story is playing, stop it first', {
+        currentlyPlayingId: currentlyPlayingId,
+        id: story.id,
+      });
       if (currentlyPlayingId && currentlyPlayingId !== story.id) {
         setCurrentlyPlayingId(null);
         setContextIsPlaying(false);
       }
-
       if (!sound) {
         // Ensure iOS playback works in production (silent switch / category)
+
+        captureException('creating new sound');
         await Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
@@ -545,6 +550,8 @@ export function StoryCard({
         });
       } else {
         // Simple pause/resume logic
+
+        captureException('already playing sound, toggling play/pause');
         if (isPlaying) {
           await sound.pauseAsync();
           setIsPlaying(false);
@@ -565,11 +572,16 @@ export function StoryCard({
         }
       }
     } catch (error) {
+      captureException('Error in play/pause handler', {
+        error: error,
+        storyId: story.id,
+      });
       console.error('Error playing audio:', error);
       setIsPlaying(false);
       setSound(null);
       setCurrentlyPlayingId(null);
       setContextIsPlaying(false);
+      alert('Failed to play audio. Please try again.');
     }
   };
   const handleDelete = async () => {
@@ -640,7 +652,11 @@ export function StoryCard({
     // Only autoplay if this is the topmost visible story
     if (visible && isFocused2?.id === story.id) {
       // Only play if this story is NOT already playing (check both state and ref)
-      if (!isPlaying && !isPlayingRef.current && (!currentlyPlayingId || currentlyPlayingId === story.id)) {
+      if (
+        !isPlaying &&
+        !isPlayingRef.current &&
+        (!currentlyPlayingId || currentlyPlayingId === story.id)
+      ) {
         handlePlayPause2(story);
       }
     } else if (!visible && isPlaying) {
@@ -660,7 +676,7 @@ export function StoryCard({
       return;
     }
     isPlayingRef.current = true;
-    
+
     try {
       // If a different story is playing, stop and unload it first
       if (sound) {
@@ -688,7 +704,7 @@ export function StoryCard({
 
       // Set maximum volume explicitly
       await newSound.setVolumeAsync(1.0);
-      
+
       // Set status update handler before setting state
       newSound.setOnPlaybackStatusUpdate((status) => {
         if (!status.isLoaded) return;
@@ -702,13 +718,13 @@ export function StoryCard({
           progress.value = 0;
           setCurrentlyPlayingId(null);
           setContextIsPlaying(false);
-          
+
           // cleanup
           newSound.unloadAsync();
           setSound(null);
         }
       });
-      
+
       // Set state after status handler is set up
       setSound(newSound);
       setIsPlaying(true);
@@ -818,7 +834,10 @@ export function StoryCard({
                           position: 'relative',
                         }}
                       />
-                      <Typography variant="bodySmall" style={styles.categoryText}>
+                      <Typography
+                        variant="bodySmall"
+                        style={styles.categoryText}
+                      >
                         {story.category}
                       </Typography>
                     </View>
