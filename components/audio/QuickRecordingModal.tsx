@@ -31,6 +31,7 @@ import { transcribeAudioFile } from '@/lib/transcription';
 import { posthog } from '@/posthog';
 import { useAuth } from '@/contexts/authContext';
 import { mixpanel } from '@/app/_layout';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VoiceSelector } from '@/components/audio/VoiceSelector';
 import { voiceChanger } from '@/lib/elevenLabs';
 
@@ -104,6 +105,7 @@ export function QuickRecordingModal({
   replyingTo,
   onReplyClick,
 }: QuickRecordingModalProps) {
+  const insets = useSafeAreaInsets();
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -131,10 +133,14 @@ export function QuickRecordingModal({
   useEffect(() => {
     return () => {
       if (recording) {
-        recording.stopAndUnloadAsync();
+        recording.stopAndUnloadAsync().catch((err) => {
+          console.warn('Error stopping recording during cleanup:', err);
+        });
       }
       if (sound.current) {
-        sound.current.unloadAsync();
+        sound.current.unloadAsync().catch((err) => {
+          console.warn('Error unloading sound during cleanup:', err);
+        });
       }
     };
   }, [recording]);
@@ -200,7 +206,9 @@ export function QuickRecordingModal({
   useEffect(() => {
     setClonedAudioUri(null);
     if (sound.current) {
-      sound.current.unloadAsync();
+      sound.current.unloadAsync().catch((err) => {
+        console.warn('Error unloading sound during reset:', err);
+      });
       sound.current = null;
       setIsPlaying(false);
     }
@@ -265,44 +273,48 @@ export function QuickRecordingModal({
   }));
 
   const handleModalClose = () => {
-    if (recording) {
-      recording.stopAndUnloadAsync();
-    }
-    if (sound.current) {
-      sound.current.unloadAsync();
-    }
+    // Note: Don't stop recording here - let the cleanup useEffect handle it
+    // Stopping here can cause issues when reopening the modal
     onClose();
   };
 
   const startRecording = async () => {
     console.log('DEBUG: startRecording called');
 
-    // Track talk button click event with PostHog
-    // posthog.capture('talk_button_clicked', {
-    //   story_id: storyId,
-    //   username: username || '',
-    //   is_reply: !!replyingTo,
-    //   timeStamp: new Date().toISOString(),
-    // });
-
     try {
+      // Clean up any existing recording or sound first
+      if (recording) {
+        try {
+          await recording.stopAndUnloadAsync();
+        } catch (err) {
+          console.warn('Error cleaning up existing recording:', err);
+        }
+      }
+      if (sound.current) {
+        try {
+          await sound.current.unloadAsync();
+        } catch (err) {
+          console.warn('Error cleaning up existing sound:', err);
+        }
+        sound.current = null;
+      }
+
       if (Platform.OS === 'ios') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
 
       await Audio.requestPermissionsAsync();
+      // Ensure iOS recording works (silent switch / proper category)
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
       });
 
-      const { recording } = await Audio.Recording.createAsync(
+      const { recording: newRecording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
-      setRecording(recording);
+      setRecording(newRecording);
       setIsRecording(true);
       setDuration(0);
       finalDuration.current = 0;
@@ -312,9 +324,10 @@ export function QuickRecordingModal({
         true
       );
     } catch (err) {
-      console.error('Failed to start recording', err);
+      console.error('Error in recording setup:', err);
       setIsRecording(false);
       setDuration(0);
+      setRecording(null);
     }
   };
 
@@ -331,15 +344,6 @@ export function QuickRecordingModal({
       setRecording(null);
       setIsRecording(false);
       pulseOpacity.value = withTiming(0, { duration: 300 });
-
-      // Reset audio mode after stopping recording
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
-      });
 
       if (uri) {
         recordingUri.current = uri;
@@ -372,14 +376,10 @@ export function QuickRecordingModal({
       }
 
       setIsLoadingAudio(true);
-
-      // Configure audio mode for better playback
+      // Match playback mode used in stories/reaction items
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
-        allowsRecordingIOS: false,
       });
 
       const { sound: newSound } = await Audio.Sound.createAsync(
@@ -430,7 +430,9 @@ export function QuickRecordingModal({
 
   const restartRecording = () => {
     if (sound.current) {
-      sound.current.unloadAsync();
+      sound.current.unloadAsync().catch((err) => {
+        console.warn('Error unloading sound on restart:', err);
+      });
       sound.current = null;
     }
     recordingUri.current = null;
@@ -520,7 +522,9 @@ export function QuickRecordingModal({
       // Track audio reaction submission event with PostHog
 
       if (sound.current) {
-        sound.current.unloadAsync();
+        sound.current.unloadAsync().catch((err) => {
+          console.warn('Error unloading sound on submit:', err);
+        });
         sound.current = null;
       }
 
@@ -589,12 +593,22 @@ export function QuickRecordingModal({
               <View style={styles.handleLine} />
 
               <View style={styles.header}>
-                <TouchableOpacity
-                  onPress={handleModalClose}
-                  style={styles.closeButton}
-                >
-                  <X size={24} color={theme.colors.text.primary} />
-                </TouchableOpacity>
+                {isPlaybackMode && (
+                  <TouchableOpacity
+                    onPress={restartRecording}
+                    style={styles.closeButton}
+                  >
+                    <X size={24} color={theme.colors.text.primary} />
+                  </TouchableOpacity>
+                )}
+                {!isPlaybackMode && (
+                  <TouchableOpacity
+                    onPress={handleModalClose}
+                    style={styles.closeButton}
+                  >
+                    <X size={24} color={theme.colors.text.primary} />
+                  </TouchableOpacity>
+                )}
               </View>
 
               <View style={styles.content}>
@@ -705,19 +719,7 @@ export function QuickRecordingModal({
                       </TouchableOpacity>
                     </View>
 
-                {/* Voice Selection for Cloning (if group members have voices) */}
-                {groupMembers.length > 0 && groupMembers.some(m => m.voice_clone_status === 'ready') && (
-                  <>
-                    <VoiceSelector
-                      groupMembers={groupMembers}
-                      selectedVoiceUserId={selectedVoiceUserId}
-                      currentUserId={user?.id || ''}
-                      onSelectVoice={(userId, voiceId) => {
-                        setSelectedVoiceUserId(userId);
-                        setSelectedVoiceId(voiceId);
-                      }}
-                    />
-
+                    {/* Voice Status Message - Show inline */}
                     {selectedVoiceId && selectedVoiceUserId !== (user?.id || '') && (
                       <View style={styles.voicePreviewContainer}>
                         {isGeneratingVoice ? (
@@ -737,8 +739,6 @@ export function QuickRecordingModal({
                         ) : null}
                       </View>
                     )}
-                  </>
-                )}
 
                     <View style={styles.playbackActions}>
                       <TouchableOpacity
@@ -748,7 +748,9 @@ export function QuickRecordingModal({
                           setDuration(0);
                           recordingUri.current = null;
                           if (sound.current) {
-                            sound.current.unloadAsync();
+                            sound.current.unloadAsync().catch((err) => {
+                              console.warn('Error unloading sound on restart button:', err);
+                            });
                             sound.current = null;
                           }
                         }}
@@ -777,6 +779,21 @@ export function QuickRecordingModal({
                         )}
                       </TouchableOpacity>
                     </View>
+
+                    {/* Voice Selection for Cloning - Show below actions */}
+                    {groupMembers.length > 0 && groupMembers.some(m => m.voice_clone_status === 'ready') && (
+                      <View style={[styles.bottomContainer, { paddingBottom: Math.max(16, insets.bottom + 12) }]}>
+                        <VoiceSelector
+                          groupMembers={groupMembers}
+                          selectedVoiceUserId={selectedVoiceUserId}
+                          currentUserId={user?.id || ''}
+                          onSelectVoice={(userId, voiceId) => {
+                            setSelectedVoiceUserId(userId);
+                            setSelectedVoiceId(voiceId);
+                          }}
+                        />
+                      </View>
+                    )}
                   </View>
                 ) : null}
 
@@ -836,10 +853,19 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '600',
   },
+  bottomContainer: {
+    marginTop: 'auto',
+    backgroundColor: '#F7F8F9',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 12,
+    paddingHorizontal: 12,
+  },
   // Playback Section
   playbackSection: {
     alignItems: 'center',
     gap: 16,
+    marginTop: 200,
   },
   playbackControls: {
     flexDirection: 'row',
@@ -877,7 +903,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingTop: 24,
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingBottom: 56,
     gap: 32,
     width: '100%',
     flex: 1,
