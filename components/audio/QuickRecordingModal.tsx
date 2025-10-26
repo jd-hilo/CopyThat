@@ -577,10 +577,11 @@ export function QuickRecordingModal({
     <Modal
       visible={isVisible}
       animationType="slide"
-      transparent={true}
+      transparent={false}
+      presentationStyle="fullScreen"
       onRequestClose={handleModalClose}
     >
-      <TouchableWithoutFeedback onPress={handleModalClose}>
+      <TouchableWithoutFeedback onPress={() => {}}>
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback onPress={() => {}}>
             <View style={styles.modalContent}>
@@ -868,28 +869,26 @@ const styles = StyleSheet.create({
   // Action Buttons
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 42,
-    borderTopRightRadius: 42,
     paddingTop: 24,
     paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingBottom: 24,
     gap: 32,
     width: '100%',
-    minHeight: '70%',
+    flex: 1,
   },
   handleLine: {
-    width: 48,
-    height: 4,
-    backgroundColor: '#000000',
-    borderRadius: 2,
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 0,
   },
   header: {
     flexDirection: 'row',
