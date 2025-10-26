@@ -8,8 +8,9 @@ import {
   Alert,
   Platform,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
-import { Mic, X, Pause, Play, Square } from 'lucide-react-native';
+import { Mic, X, Pause, Play, Square, Check } from 'lucide-react-native';
 import { Typography } from '@/components/ui/Typography';
 import { theme } from '@/constants/theme';
 import * as Haptics from 'expo-haptics';
@@ -30,6 +31,8 @@ import { transcribeAudioFile } from '@/lib/transcription';
 import { posthog } from '@/posthog';
 import { useAuth } from '@/contexts/authContext';
 import { mixpanel } from '@/app/_layout';
+import { VoiceSelector } from '@/components/audio/VoiceSelector';
+import { voiceChanger } from '@/lib/elevenLabs';
 
 interface QuickRecordingModalProps {
   storyId: string;
@@ -117,6 +120,13 @@ export function QuickRecordingModal({
   const [showSendAnimation, setShowSendAnimation] = useState(false);
   const { user } = useAuth();
 
+  // Voice cloning state
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
+  const [selectedVoiceUserId, setSelectedVoiceUserId] = useState<string | null>(null);
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
+  const [clonedAudioUri, setClonedAudioUri] = useState<string | null>(null);
+
   // Cleanup audio resources
   useEffect(() => {
     return () => {
@@ -128,6 +138,97 @@ export function QuickRecordingModal({
       }
     };
   }, [recording]);
+
+  // Fetch group members who have voice clones for this story's group (if any)
+  useEffect(() => {
+    const fetchGroupMembers = async () => {
+      try {
+        if (!storyId) return;
+        // Find group for this story (if it is a group story)
+        const { data: groupLink, error: groupLinkError } = await supabase
+          .from('group_stories')
+          .select('group_id')
+          .eq('story_id', storyId)
+          .maybeSingle();
+
+        if (groupLinkError) {
+          console.warn('Error fetching group link for story:', groupLinkError);
+          return;
+        }
+        if (!groupLink?.group_id) {
+          // Not a group story; no members to offer
+          setGroupMembers([]);
+          return;
+        }
+
+        const { data: members, error } = await supabase
+          .from('group_members')
+          .select(`
+            user_id,
+            profiles!inner (
+              id,
+              username,
+              avatar_url,
+              voice_clone_id,
+              voice_clone_status
+            )
+          `)
+          .eq('group_id', groupLink.group_id);
+
+        if (error) throw error;
+
+        const formatted = (members || []).map((m: any) => ({
+          id: m.profiles.id,
+          username: m.profiles.username,
+          avatar_url: m.profiles.avatar_url,
+          voice_clone_id: m.profiles.voice_clone_id,
+          voice_clone_status: m.profiles.voice_clone_status,
+        }));
+        setGroupMembers(formatted);
+      } catch (err) {
+        console.warn('Failed to fetch group members for reaction cloning:', err);
+        setGroupMembers([]);
+      }
+    };
+
+    if (isVisible) {
+      fetchGroupMembers();
+    }
+  }, [isVisible, storyId]);
+
+  // Reset cloned audio when selection changes; auto-generate when ready
+  useEffect(() => {
+    setClonedAudioUri(null);
+    if (sound.current) {
+      sound.current.unloadAsync();
+      sound.current = null;
+      setIsPlaying(false);
+    }
+
+    if (
+      selectedVoiceId &&
+      selectedVoiceUserId &&
+      selectedVoiceUserId !== (user?.id || '') &&
+      recordingUri.current
+    ) {
+      handleGenerateVoicePreview();
+    }
+  }, [selectedVoiceId, selectedVoiceUserId]);
+
+  const handleGenerateVoicePreview = async () => {
+    try {
+      if (!selectedVoiceId || !recordingUri.current) return;
+      setIsGeneratingVoice(true);
+      const result = await voiceChanger(recordingUri.current, selectedVoiceId);
+      if (result.success && result.audioUri) {
+        setClonedAudioUri(result.audioUri);
+      }
+    } catch (e) {
+      console.warn('Voice preview generation failed:', e);
+    } finally {
+      setIsGeneratingVoice(false);
+    }
+  };
 
   useEffect(() => {
     if (isRecording) {
@@ -257,7 +358,7 @@ export function QuickRecordingModal({
 
   const playRecording = async () => {
     try {
-      if (!recordingUri.current) return;
+      if (!recordingUri.current && !clonedAudioUri) return;
 
       if (sound.current) {
         if (isPlaying) {
@@ -282,7 +383,7 @@ export function QuickRecordingModal({
       });
 
       const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: recordingUri.current },
+        { uri: clonedAudioUri || recordingUri.current! },
         {
           progressUpdateIntervalMillis: 100,
           shouldPlay: true,
@@ -358,7 +459,23 @@ export function QuickRecordingModal({
         setIsSubmitting(false);
         return;
       }
-      const uri = recordingUri.current;
+      let uri = recordingUri.current;
+
+      // If a different member's voice is selected, ensure we have a cloned audio
+      if (
+        selectedVoiceId &&
+        selectedVoiceUserId &&
+        selectedVoiceUserId !== (user?.id || '')
+      ) {
+        if (!clonedAudioUri) {
+          const result = await voiceChanger(uri, selectedVoiceId);
+          if (result.success && result.audioUri) {
+            uri = result.audioUri;
+          }
+        } else {
+          uri = clonedAudioUri;
+        }
+      }
 
       // Get the audio file as bytes
       const response = await fetch(uri);
@@ -371,13 +488,18 @@ export function QuickRecordingModal({
         reader.onerror = reject;
         reader.readAsArrayBuffer(blob);
       });
+      // Determine content type and extension based on uri
+      const isMp3 = uri.toLowerCase().endsWith('.mp3');
+      const contentType = isMp3 ? 'audio/mpeg' : 'audio/m4a';
+      const extension = isMp3 ? 'mp3' : 'm4a';
+
       // Start both transcription and upload in parallel
       const [transcription, uploadResult] = await Promise.all([
         transcribeAudioFile(uri),
         supabase.storage
           .from('reactions')
-          .upload(`reactions/${storyId}/${Date.now()}.m4a`, arrayBuffer, {
-            contentType: 'audio/m4a',
+          .upload(`reactions/${storyId}/${Date.now()}.${extension}`, arrayBuffer, {
+            contentType,
           }),
       ]);
 
@@ -582,6 +704,41 @@ export function QuickRecordingModal({
                       </TouchableOpacity>
                     </View>
 
+                {/* Voice Selection for Cloning (if group members have voices) */}
+                {groupMembers.length > 0 && groupMembers.some(m => m.voice_clone_status === 'ready') && (
+                  <>
+                    <VoiceSelector
+                      groupMembers={groupMembers}
+                      selectedVoiceUserId={selectedVoiceUserId}
+                      currentUserId={user?.id || ''}
+                      onSelectVoice={(userId, voiceId) => {
+                        setSelectedVoiceUserId(userId);
+                        setSelectedVoiceId(voiceId);
+                      }}
+                    />
+
+                    {selectedVoiceId && selectedVoiceUserId !== (user?.id || '') && (
+                      <View style={styles.voicePreviewContainer}>
+                        {isGeneratingVoice ? (
+                          <View style={styles.generatingContainer}>
+                            <ActivityIndicator size="small" color="#FF9B71" />
+                            <Typography variant="body" style={styles.generatingText}>
+                              Converting your reply to {groupMembers.find(m => m.id === selectedVoiceUserId)?.username}'s voice...
+                            </Typography>
+                          </View>
+                        ) : clonedAudioUri ? (
+                          <View style={styles.previewReadyContainer}>
+                            <Check size={18} color="#4CAF50" />
+                            <Typography variant="body" style={styles.previewReadyText}>
+                              Voice converted! Tap play to preview the cloned voice
+                            </Typography>
+                          </View>
+                        ) : null}
+                      </View>
+                    )}
+                  </>
+                )}
+
                     <View style={styles.playbackActions}>
                       <TouchableOpacity
                         style={styles.restartButton}
@@ -655,6 +812,29 @@ export function QuickRecordingModal({
 }
 
 const styles = StyleSheet.create({
+  voicePreviewContainer: {
+    width: '100%',
+    paddingHorizontal: 16,
+  },
+  generatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  generatingText: {
+    color: '#333',
+  },
+  previewReadyContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  previewReadyText: {
+    color: '#333',
+    fontWeight: '600',
+  },
   // Playback Section
   playbackSection: {
     alignItems: 'center',
