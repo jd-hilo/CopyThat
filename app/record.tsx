@@ -32,7 +32,7 @@ import { formatDuration } from '@/utils/timeUtils';
 import { createStory } from '@/lib/stories';
 import { supabase } from '@/lib/supabase';
 import { transcribeAudioFile } from '@/lib/transcription';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { STORY_TAGS } from '@/constants/tags';
 import { mixpanel } from './_layout';
 //import { showReactionNotificationModal } from '@/lib/notifications';
@@ -741,14 +741,11 @@ const DetailsView = ({
                 <View style={styles.optionLabel}>
                   <Tag size={24} color="#000000" />
                   <Typography variant="body" style={styles.optionText}>
-                    {selectedTag ? selectedTag : 'add tag *'}
+                    {selectedTag ? selectedTag : 'add tag'}
                   </Typography>
                 </View>
                 <TouchableOpacity
-                  style={[
-                    styles.optionButton,
-                    !selectedTag && styles.optionButtonRequired,
-                  ]}
+                  style={styles.optionButton}
                   onPress={() => setShowTagsModal(true)}
                 >
                   {selectedTag ? (
@@ -770,7 +767,10 @@ const DetailsView = ({
                 <View style={styles.optionLabel}>
                   <Lock size={24} color="#000000" />
                   <Typography variant="body" style={styles.optionText}>
-                    {userCollege === 'None of the Above'
+                    {selectedGroupId
+                      ? userGroups.find(g => g.id === selectedGroupId)?.name || 
+                        (userCollege === 'None of the Above' ? 'post to group *' : 'post to group')
+                      : userCollege === 'None of the Above'
                       ? 'post to group *'
                       : 'post to group'}
                   </Typography>
@@ -1058,8 +1058,10 @@ const SuccessModal = ({
   );
 };
 
-export default function RecordScreen() {
+export default function RecordScreen({ initialGroupId }: { initialGroupId?: string } = {}) {
   const router = useRouter();
+  const params = useLocalSearchParams<{ groupId?: string }>();
+  const urlGroupId = params?.groupId ? String(params.groupId) : undefined;
   const [isRecording, setIsRecording] = useState(false);
   const [hasAudioSignal, setHasAudioSignal] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -1081,7 +1083,13 @@ export default function RecordScreen() {
   const [userGroups, setUserGroups] = useState<
     { id: string; name: string; member_count: { count: number } }[]
   >([]);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
+    initialGroupId ?? urlGroupId ?? null
+  );
+  
+  // Debug log to see if initialGroupId is being passed
+  console.log('RecordScreen - initialGroupId:', initialGroupId);
+  console.log('RecordScreen - selectedGroupId:', selectedGroupId);
   const [currentUserHasVoiceClone, setCurrentUserHasVoiceClone] = useState(false);
   const { user } = useAuth();
   const recording = useRef<Audio.Recording | null>(null);
@@ -1447,13 +1455,7 @@ export default function RecordScreen() {
       return;
     }
 
-    if (!selectedTag) {
-      Alert.alert(
-        'Missing Information',
-        'Please select a tag for your recording.'
-      );
-      return;
-    }
+    // Tag is now optional - no validation needed
 
     // Require group selection for "None of the Above" users who have groups
     if (
@@ -1505,22 +1507,18 @@ export default function RecordScreen() {
 
       if (success) {
         console.log('Audio posted successfully');
-        setShowSuccessModal(true);
-        // posthog.capture('audio_recording_posted', {
-        //   user: {
-        //     id: user?.id as string,
-        //     email: user?.email || '',
-        //   },
-        //   timeStamp: new Date().toISOString(),
-        // });
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
+        
+        // Reset state
         resetRecordingState();
-
         setCurrentStoryIsFriendsOnly(
           userCollege === 'None of the Above' ? true : isPrivate
         );
+        
+        // Route directly to home page
+        router.replace('/(tabs)');
       } else {
         Alert.alert('Error', 'Failed to publish recording. Please try again.');
       }
@@ -1648,7 +1646,9 @@ export default function RecordScreen() {
       <SuccessModal
         visible={showSuccessModal}
         onClose={() => {
+          console.log('🔍 Success modal onClose called');
           setShowSuccessModal(false);
+          resetRecordingState();
           // setShowNotificationModal(true);
         }}
         router={router}

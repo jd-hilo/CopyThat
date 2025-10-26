@@ -40,6 +40,7 @@ import {
   Users,
   Plus,
   MoreVertical,
+  MoreHorizontal,
   Share as ShareIcon,
   LogOut,
   X,
@@ -172,7 +173,7 @@ export default function HomeScreen() {
   const currentVisible = useRef(null);
   const hintOpacity = useRef(new Animated.Value(0)).current;
   const hintTimerRef = useRef<any>(null);
-  const [userHasVoiceClone, setUserHasVoiceClone] = useState(false);
+  const [userHasVoiceClone, setUserHasVoiceClone] = useState(true); // Default true to avoid flash
   const [showVoiceCloningModal, setShowVoiceCloningModal] = useState(false);
   // When the playing story changes, scroll it to the top anchor
   useEffect(() => {
@@ -550,6 +551,7 @@ export default function HomeScreen() {
         if (storyIds.length === 0) {
           setThoughts([]);
           setLoading(false);
+          setRefreshing(false);
           return;
         }
 
@@ -561,6 +563,7 @@ export default function HomeScreen() {
         // Return early with empty array
         setThoughts([]);
         setLoading(false);
+        setRefreshing(false);
         return;
       } else {
         // In friends feed, show:
@@ -606,6 +609,8 @@ export default function HomeScreen() {
       console.log('fetch thoughts 11');
       if (error) {
         console.error('Error fetching stories:', error);
+        setLoading(false);
+        setRefreshing(false);
         return;
       }
 
@@ -1484,12 +1489,24 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
                   </View>
                 </View>
                 <View style={styles.headerRight}>
-                  <View style={styles.hotNewToggleContainer}>
-                    <HotNewToggle
-                      isHotFeed={isHotFeed}
-                      onToggle={handleHotNewToggle}
-                    />
-                  </View>
+                  {/* Hot/New Toggle Hidden for now */}
+                  {/* {selectedGroupId && !isCollegeFeed && (
+                    <View style={styles.hotNewToggleContainer}>
+                      <HotNewToggle
+                        isHotFeed={isHotFeed}
+                        onToggle={handleHotNewToggle}
+                      />
+                    </View>
+                  )} */}
+                  {/* Group Actions - In Header */}
+                  {selectedGroupId && !isCollegeFeed && (
+                    <TouchableOpacity
+                      style={styles.headerMenuButton}
+                      onPress={() => setIsFabExpanded(!isFabExpanded)}
+                    >
+                      <MoreHorizontal size={20} color="#000000" />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </View>
@@ -1548,51 +1565,40 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
             {selectedGroupId && !isCollegeFeed && (
               <View style={styles.recordFabContainer}>
                 <TouchableOpacity
-                  style={styles.fabButton}
-                  onPress={() => router.push('/record')}
+                  style={styles.recordFabButton}
+                  onPress={() => router.push(`/record?groupId=${selectedGroupId}`)}
                 >
-                  <Mic size={24} color="#000000" />
+                  <Mic size={32} color="#FFFB00" />
                 </TouchableOpacity>
               </View>
             )}
 
-            {/* Group Actions FAB */}
-            {selectedGroupId && !isCollegeFeed && (
-              <View style={styles.fabContainer}>
+            {/* Dropdown Menu - Positioned below header */}
+            {selectedGroupId && !isCollegeFeed && isFabExpanded && (
+              <View style={styles.fabOptionsTop}>
                 <TouchableOpacity
-                  style={styles.fabButton}
-                  onPress={() => setIsFabExpanded(!isFabExpanded)}
+                  style={styles.fabOption}
+                  onPress={handleViewMembers}
                 >
-                  <MoreVertical size={24} color="#000000" />
+                  <Users size={20} color="#333A3C" />
+                  <Text style={styles.fabOptionText}>View Members</Text>
                 </TouchableOpacity>
 
-                {isFabExpanded && (
-                  <View style={styles.fabOptions}>
-                    <TouchableOpacity
-                      style={styles.fabOption}
-                      onPress={handleViewMembers}
-                    >
-                      <Users size={20} color="#333A3C" />
-                      <Text style={styles.fabOptionText}>View Members</Text>
-                    </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.fabOption}
+                  onPress={handleShareGroup}
+                >
+                  <ShareIcon size={20} color="#333A3C" />
+                  <Text style={styles.fabOptionText}>Share Group</Text>
+                </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={styles.fabOption}
-                      onPress={handleShareGroup}
-                    >
-                      <ShareIcon size={20} color="#333A3C" />
-                      <Text style={styles.fabOptionText}>Share Group</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.fabOption}
-                      onPress={handleLeaveGroup}
-                    >
-                      <LogOut size={20} color="#FF3B30" />
-                      <Text style={styles.fabOptionText}>Leave Group</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
+                <TouchableOpacity
+                  style={styles.fabOption}
+                  onPress={handleLeaveGroup}
+                >
+                  <LogOut size={20} color="#FF3B30" />
+                  <Text style={styles.fabOptionText}>Leave Group</Text>
+                </TouchableOpacity>
               </View>
             )}
           </>
@@ -1829,6 +1835,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 0,
+  },
+  headerMenuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  fabOptionsTop: {
+    position: 'absolute',
+    top: 120,
+    right: 25,
+    zIndex: 1000,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   headerSide: {
     width: 80,
@@ -2238,19 +2273,32 @@ const styles = StyleSheet.create({
   recordFabContainer: {
     position: 'absolute',
     bottom: 120,
-    left: 16,
+    right: 16,
     zIndex: 1000,
+  },
+  recordFabButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   fabContainer: {
     position: 'absolute',
-    bottom: 120,
+    bottom: 204,
     right: 16,
     zIndex: 1000,
   },
   fabButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',

@@ -46,7 +46,7 @@ import { useAudioPlayback } from '@/lib/AudioPlaybackContext';
 import { EmojiPicker } from '../EmojiPicker';
 import { useReactions } from '@/hooks/useReactions';
 import { useIsFocused } from '@react-navigation/native';
-import { mixpanel, trackReactionPosted } from '../../app/_layout';
+import { mixpanel } from '../../app/_layout';
 import { theme } from '@/constants/theme';
 import {
   Menu,
@@ -280,6 +280,7 @@ export function StoryCard({
   const [audioReactionCount, setAudioReactionCount] = useState(0);
   const [showGraffitiSplash, setShowGraffitiSplash] = useState(false);
   const visibleRef = useRef([]);
+  const isPlayingRef = useRef(false);
 
   // Determine if this card should be highlighted (either active or currently playing)
   const shouldHighlight =
@@ -315,39 +316,8 @@ export function StoryCard({
   };
   const sizeStyles = getSizeStyles();
 
+  // Cleanup function for unmounting
   useEffect(() => {
-    // Set up audio mode
-    Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
-      shouldDuckAndroid: false,
-      playThroughEarpieceAndroid: false,
-      allowsRecordingIOS: false,
-    });
-    // .then(() => {})
-    // .catch((error) => {
-    //   console.error('Error setting up audio mode:', error);
-    // });
-
-    const checkCurrentUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        const actualCreatorId = story.creatorId || story.user.id;
-        const isOwner = user.id === actualCreatorId;
-        console.log('Checking current user:', {
-          currentUserId: user.id,
-          actualCreatorId: actualCreatorId,
-          displayedUserId: story.user.id,
-          isOwner,
-        });
-        setIsCurrentUser(isOwner);
-      }
-    };
-    checkCurrentUser();
-
-    // Cleanup function for unmounting
     return () => {
       if (sound) {
         // Ensure audio is properly stopped and cleaned up when component unmounts
@@ -380,7 +350,7 @@ export function StoryCard({
         }
       }
     };
-  }, [sound, story.id, isVisible, isPlaying]);
+  }, [sound]);
 
   // Check if current user is the story author
   useEffect(() => {
@@ -392,20 +362,17 @@ export function StoryCard({
         // Use creatorId if available (for cloned voice stories), otherwise use story.user.id
         const actualCreatorId = story.creatorId || story.user.id;
         const isOwner = user.id === actualCreatorId;
-        console.log('Checking current user for story:', story.id, {
-          authUserId: user.id,
-          actualCreatorId: actualCreatorId,
-          displayedUserId: story.user.id,
-          isOwner,
-        });
-        setIsCurrentUser(isOwner);
+        if (isOwner !== isCurrentUser) {
+          setIsCurrentUser(isOwner);
+        }
       } else {
-        console.log('User check failed - no authenticated user');
-        setIsCurrentUser(false);
+        if (isCurrentUser) {
+          setIsCurrentUser(false);
+        }
       }
     };
     checkCurrentUser();
-  }, [story.id, story.creatorId, story.user?.id]);
+  }, [story.id, story.creatorId, story.user?.id, isCurrentUser]);
 
   // (No global driver needed; each bar animates like the recording tab)
 
@@ -652,7 +619,6 @@ export function StoryCard({
   };
 
   const handleTalkPress = () => {
-    console.log('Talk button pressed for story:', story.id);
     mixpanel.track('Talk button clicked');
     // Pause audio when opening talk modal
     if (isPlaying && sound) {
@@ -663,69 +629,54 @@ export function StoryCard({
 
     // Make sure onReaction is defined
     if (!onReaction) {
-      console.warn('onReaction prop is not defined');
       return;
     }
 
     // Call onReaction with the story
-    console.log('Calling onReaction with story:', story);
     onReaction(story);
   };
 
-  // Add refs for debouncing and timing
-  const visibilityPauseTimer = useRef<NodeJS.Timeout | null>(null);
-  const lastVisibleRef = useRef<boolean>(false);
-  const justStartedAtRef = useRef<number>(0);
-
   const handleImageVisibility = (visible: boolean) => {
-    lastVisibleRef.current = visible;
-
+    // Only autoplay if this is the topmost visible story
     if (visible && isFocused2?.id === story.id) {
-      // Cancel any pending pause if we became visible
-      if (visibilityPauseTimer.current) {
-        clearTimeout(visibilityPauseTimer.current);
-        visibilityPauseTimer.current = null;
-      }
-      // Only auto-play if this story is the most visible and no other story is playing
-      if (!currentlyPlayingId || currentlyPlayingId === story.id) {
+      // Only play if this story is NOT already playing (check both state and ref)
+      if (!isPlaying && !isPlayingRef.current && (!currentlyPlayingId || currentlyPlayingId === story.id)) {
         handlePlayPause2(story);
       }
     } else if (!visible && isPlaying) {
-      // Debounce pause to prevent immediate pause on visibility flicker
-      // Ignore pauses within 300ms of starting playback
-      if (Date.now() - justStartedAtRef.current < 300) return;
-
-      if (visibilityPauseTimer.current) {
-        clearTimeout(visibilityPauseTimer.current);
+      // Pause when the story becomes invisible
+      if (sound) {
+        sound.pauseAsync();
+        setIsPlaying(false);
+        setCurrentlyPlayingId(null);
+        setContextIsPlaying(false);
+        isPlayingRef.current = false; // Clear the guard
       }
-      visibilityPauseTimer.current = setTimeout(() => {
-        if (!lastVisibleRef.current && sound) {
-          sound.pauseAsync();
-          setIsPlaying(false);
-          setCurrentlyPlayingId(null);
-          setContextIsPlaying(false);
-        }
-      }, 250);
     }
   };
 
   const handlePlayPause2 = async (story: AudioStory) => {
+    if (isPlayingRef.current) {
+      return;
+    }
+    isPlayingRef.current = true;
+    
     try {
       // If a different story is playing, stop and unload it first
       if (sound) {
         try {
-          await sound.stopAsync();
           await sound.unloadAsync();
         } catch (e) {
-          console.warn('Failed to stop/unload previous sound:', e);
+          console.warn('Failed to unload previous sound:', e);
         }
+        setSound(null);
       }
 
       // Create new sound instance for auto-play
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: story.audioUrl },
         {
-          progressUpdateIntervalMillis: 1000,
+          progressUpdateIntervalMillis: 100,
           shouldPlay: true,
           volume: 1.0,
           rate: 1.0,
@@ -735,12 +686,10 @@ export function StoryCard({
         }
       );
 
-      setSound(newSound);
-      setIsPlaying(true);
-      setCurrentlyPlayingId(story.id);
-      setContextIsPlaying(true);
-      justStartedAtRef.current = Date.now();
-
+      // Set maximum volume explicitly
+      await newSound.setVolumeAsync(1.0);
+      
+      // Set status update handler before setting state
       newSound.setOnPlaybackStatusUpdate((status) => {
         if (!status.isLoaded) return;
 
@@ -751,23 +700,28 @@ export function StoryCard({
           setIsPlaying(false);
           setCurrentTime(0);
           progress.value = 0;
-
           setCurrentlyPlayingId(null);
           setContextIsPlaying(false);
-
+          
           // cleanup
           newSound.unloadAsync();
           setSound(null);
-
-          onPlay?.(story);
         }
       });
+      
+      // Set state after status handler is set up
+      setSound(newSound);
+      setIsPlaying(true);
+      setCurrentlyPlayingId(story.id);
+      setContextIsPlaying(true);
+      isPlayingRef.current = false; // Clear the guard
     } catch (error) {
       console.error('Error playing audio:', error);
       setIsPlaying(false);
       setSound(null);
       setCurrentlyPlayingId(null);
       setContextIsPlaying(false);
+      isPlayingRef.current = false; // Clear the guard on error
     }
   };
 
@@ -853,20 +807,22 @@ export function StoryCard({
                   <Typography variant="h3" style={styles.title}>
                     {story.title}{' '}
                   </Typography>
-                  <View style={styles.categoryTag}>
-                    <TagIcon
-                      size={14}
-                      color="#000405"
-                      fill="#FFFB00"
-                      strokeWidth={1.2}
-                      style={{
-                        position: 'relative',
-                      }}
-                    />
-                    <Typography variant="bodySmall" style={styles.categoryText}>
-                      {story.category}
-                    </Typography>
-                  </View>
+                  {story.category && (
+                    <View style={styles.categoryTag}>
+                      <TagIcon
+                        size={14}
+                        color="#000405"
+                        fill="#FFFB00"
+                        strokeWidth={1.2}
+                        style={{
+                          position: 'relative',
+                        }}
+                      />
+                      <Typography variant="bodySmall" style={styles.categoryText}>
+                        {story.category}
+                      </Typography>
+                    </View>
+                  )}
                 </View>
               </View>
             </View>
@@ -1082,15 +1038,6 @@ export function StoryCard({
               onPress={() => setShowMenu(false)}
             >
               <View style={styles.menuContent}>
-                {(() => {
-                  console.log(
-                    'Menu rendering - isCurrentUser:',
-                    isCurrentUser,
-                    'story.user.id:',
-                    story.user.id
-                  );
-                  return null;
-                })()}
                 {isCurrentUser ? (
                   <TouchableOpacity
                     style={styles.menuItem}

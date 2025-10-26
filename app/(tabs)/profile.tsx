@@ -66,7 +66,7 @@ export default function ProfileScreen() {
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showFeatureModal, setShowFeatureModal] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'thoughts' | 'groups'>(
+  const [selectedTab, setSelectedTab] = useState<'posts' | 'groups'>(
     'groups'
   );
   const [groups, setGroups] = useState<any[]>([]);
@@ -608,10 +608,10 @@ export default function ProfileScreen() {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Typography variant="h2" style={styles.emptyStateTitle}>
-        no thoughts yet 🎧
+        no posts yet 🎧
       </Typography>
       <Typography variant="body" style={styles.emptyStateText}>
-        share your first thought with your friends!
+        share your first post with your friends!
       </Typography>
       <TouchableOpacity
         style={styles.recordNowButton}
@@ -839,28 +839,28 @@ export default function ProfileScreen() {
       <TouchableOpacity
         style={[
           styles.tabButton,
-          selectedTab === 'thoughts' ? styles.tabButtonActive : undefined,
+          selectedTab === 'posts' ? styles.tabButtonActive : undefined,
         ]}
-        onPress={() => setSelectedTab('thoughts')}
+        onPress={() => setSelectedTab('posts')}
       >
         <UserIcon
           size={22}
-          color={selectedTab === 'thoughts' ? '#000' : '#8A8E8F'}
+          color={selectedTab === 'posts' ? '#000' : '#8A8E8F'}
         />
         <Typography
           variant="body"
           style={
-            selectedTab === 'thoughts'
+            selectedTab === 'posts'
               ? [styles.tabLabel, styles.tabLabelActive]
               : [styles.tabLabel]
           }
         >
-          thoughts
+          posts
         </Typography>
         <Typography
           variant="body"
           style={
-            selectedTab === 'thoughts'
+            selectedTab === 'posts'
               ? [styles.tabCount, styles.tabLabelActive]
               : [styles.tabCount]
           }
@@ -1028,7 +1028,7 @@ export default function ProfileScreen() {
         {renderTabBar()}
       </View>
       <View style={styles.tabContent}>
-        {selectedTab === 'thoughts' ? (
+        {selectedTab === 'posts' ? (
           loading ? (
             <View style={styles.loadingContainer}>
               <SpinningHeadphone size={32} />
