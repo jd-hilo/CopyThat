@@ -525,6 +525,7 @@ export default function HomeScreen() {
         user:profiles!user_id(*),
         cloned_voice_user:profiles!cloned_voice_user_id(*),
         group_stories (
+          group_id,
           group:groups (
             id,
             name,
@@ -533,7 +534,8 @@ export default function HomeScreen() {
         )
       `
         )
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50); // Add limit to prevent overly large queries
       console.log('fetch thoughts 4');
       if (selectedGroupId) {
         console.log('fetch thoughts 5');
@@ -1465,6 +1467,15 @@ https://apps.apple.com/us/app/hear-me-out-social-audio/id6745344571`;
                     </TouchableOpacity>
                   </LinearGradient>
                 </View>
+                <TouchableOpacity
+                  style={styles.signOutButton}
+                  onPress={handleSignOut}
+                >
+                  <LogOut size={20} color="#8A8E8F" style={{ marginRight: 8 }} />
+                  <Typography variant="body" style={styles.signOutText}>
+                    sign out
+                  </Typography>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -2462,5 +2473,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito-SemiBold',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8F8F8',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginTop: 12,
+  },
+  signOutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#8A8E8F',
+    fontFamily: 'Nunito-SemiBold',
+    textTransform: 'lowercase',
   },
 });

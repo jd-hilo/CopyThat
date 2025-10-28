@@ -291,18 +291,19 @@ export default function StoryDetails() {
 
   const handleDeleteReaction = async (reactionId: string) => {
     try {
+      // Delete the parent reaction and all its replies
       const { error } = await supabase
         .from('reactions')
         .delete()
-        .eq('id', reactionId);
+        .or(`id.eq.${reactionId},reply_to.eq.${reactionId}`);
 
       if (error) {
         console.error('Error deleting reaction:', error);
         return;
       }
 
-      // Remove the reaction from local state
-      setReactions(prev => prev.filter(reaction => reaction.id !== reactionId));
+      // Remove the reaction and all its replies from local state
+      setReactions(prev => prev.filter(reaction => reaction.id !== reactionId && reaction.reply_to !== reactionId));
     } catch (error) {
       console.error('Error deleting reaction:', error);
     }
@@ -344,11 +345,18 @@ export default function StoryDetails() {
           duration,
           created_at,
           category,
+          is_voice_cloned,
+          cloned_voice_user_id,
           user:user_id!inner(
             id,
             username,
             avatar_url,
             friend_count
+          ),
+          cloned_voice_user:profiles!cloned_voice_user_id(
+            id,
+            username,
+            avatar_url
           )
         `
         )
@@ -358,7 +366,10 @@ export default function StoryDetails() {
       if (error) throw error;
 
       if (data) {
-        const storyData = data as unknown as StoryResponse;
+        const storyData = data as any;
+        // Use cloned voice user if available, otherwise use original user
+        const displayUser = storyData.cloned_voice_user || storyData.user;
+        
         // Convert Supabase data to match our AudioStory format
         const formattedData: Story = {
           id: storyData.id,
@@ -370,11 +381,11 @@ export default function StoryDetails() {
           createdAt: storyData.created_at,
           category: storyData.category,
           user: {
-            id: storyData.user.id,
-            name: storyData.user.username,
-            username: storyData.user.username,
+            id: displayUser.id,
+            name: displayUser.username,
+            username: displayUser.username,
             profileImage:
-              storyData.user.avatar_url ||
+              displayUser.avatar_url ||
               'https://hilo.supabase.co/storage/v1/object/public/avatars/default.png',
             followersCount: storyData.user.friend_count || 0,
           },
@@ -405,7 +416,13 @@ export default function StoryDetails() {
           created_at,
           duration,
           like_count,
+          cloned_voice_user_id,
           user:user_id!inner(
+            id,
+            username,
+            avatar_url
+          ),
+          cloned_voice_user:cloned_voice_user_id(
             id,
             username,
             avatar_url
@@ -426,6 +443,9 @@ export default function StoryDetails() {
 
       const formattedReactions: Reaction[] = (data || []).map((r) => {
         const reaction = r as any;
+        // Use cloned voice user if available, otherwise use original user
+        const displayUser = reaction.cloned_voice_user || reaction.user;
+        
         return {
           id: reaction.id,
           user_id: reaction.user_id,
@@ -437,9 +457,9 @@ export default function StoryDetails() {
           duration: reaction.duration,
           like_count: reaction.like_count,
           user: {
-            id: reaction.user.id,
-            username: reaction.user.username,
-            avatar_url: reaction.user.avatar_url,
+            id: displayUser.id,
+            username: displayUser.username,
+            avatar_url: displayUser.avatar_url,
           },
           replying_to: reaction.replying_to
             ? {
@@ -702,23 +722,6 @@ export default function StoryDetails() {
           <Typography variant="h1" style={styles.title}>
             {story.title}
           </Typography>
-        </View>
-
-        <View style={styles.categoryTagContainer}>
-          <View style={styles.categoryTag}>
-            <TagIcon
-              size={14}
-              color="#000405"
-              fill="#FFFB00"
-              strokeWidth={2.0}
-              style={{
-                position: 'relative',
-              }}
-            />
-            <Typography variant="bodySmall" style={styles.categoryText}>
-              {story.category}
-            </Typography>
-          </View>
         </View>
 
         <View style={styles.infoRow}>

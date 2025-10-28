@@ -390,18 +390,33 @@ export function VoiceCloningModal({
             </Typography>
           </View>
 
-          {/* Instructions */}
-          <View style={styles.instructionsContainer}>
-            <Typography variant="h3" style={styles.instructionsTitle}>
-              Voice Cloning Instructions
+          {/* Story to Read */}
+          <View style={styles.storyContainer}>
+            <Typography variant="h3" style={styles.storyTitle}>
+              Record 30-60 seconds of you reading the story
             </Typography>
-            <Typography variant="body" style={styles.instructionsText}>
-              {'Record 30-60 seconds of clear audio:\n\n' +
-                '• Speak naturally in a quiet environment\n' +
-                '• Use your normal speaking voice\n' +
-                '• Vary your tone and emotion\n' +
-                '• Talk about anything you like\n' +
-                '• Ensure good audio quality'}
+            <ScrollView 
+              style={styles.storyScrollView}
+              showsVerticalScrollIndicator={true}
+            >
+              <Typography variant="body" style={styles.storyText}>
+                {'In a small town nestled between rolling hills, there lived an old librarian named Margaret. She had spent her entire life surrounded by books, each one holding stories of adventures, love, dreams, and the vast tapestry of human experience.\n\n' +
+                'Every morning, Margaret would arrive at the library before dawn, her key making a familiar click in the ancient lock. The building itself was a character in the story of the town - its walls had absorbed decades of whispered conversations, of children learning to read, of teenagers discovering first loves, and of elderly patrons seeking companionship in the pages of favorite novels.\n\n' +
+                'The library was not just a building; it was a sanctuary. On rainy afternoons, students would huddle at tables by the window, their textbooks spread open as they chased understanding. Lovers would browse poetry collections together, fingers brushing against each other as they turned pages. Children would gather in the corner, their imaginations set free by picture books and fairy tales.\n\n' +
+                'Margaret knew every book on every shelf. She could tell you which novel had been checked out the most times, which classics were gathering dust, and which new releases had caused a waiting list. Her knowledge wasn\'t limited to book titles - she understood the reading habits of her community, knowing which genres brought joy to which patrons.\n\n' +
+                'One particular afternoon, a young woman named Sarah entered the library looking lost. Her eyes scanned the shelves uncertainly, her shoulders tense with the weight of some unseen burden. Margaret approached quietly, not wanting to startle her, and offered a gentle smile.\n\n' +
+                '"Looking for something specific?" Margaret asked, her voice as warm as afternoon sunlight filtering through the window.\n\n' +
+                'Sarah hesitated, then said, "I need to escape for a while. Just... forget the world exists outside these walls."\n\n' +
+                'Margaret understood that need well. She led Sarah to a corner she had found over the years to be particularly comforting - a space with oversized chairs, soft lighting, and books that spoke to the weary soul. She pulled out a novel about a woman discovering strength she didn\'t know she had.\n\n' +
+                '"Try this," Margaret said softly. "Sometimes we need to see ourselves reflected in someone else\'s journey to remember who we are."\n\n' +
+                'Sarah took the book gratefully, settling into one of the comfortable chairs. As she opened the pages, Margaret slipped away, knowing that the quiet act of reading would work its healing magic.\n\n' +
+                'Hours later, when the library was preparing to close, Sarah approached the desk with the book in hand, her eyes clear and shoulders relaxed.\n\n' +
+                '"Thank you," Sarah said, her gratitude evident in her voice. "You knew exactly what I needed."\n\n' +
+                'Margaret smiled, satisfied in the knowledge that once again, the library had fulfilled its purpose - not just as a collection of books, but as a place where people found themselves again.'}
+              </Typography>
+            </ScrollView>
+            <Typography variant="bodySmall" style={styles.scrollHint}>
+              scroll to read more
             </Typography>
           </View>
 
@@ -559,22 +574,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Nunito-SemiBold',
   },
-  instructionsContainer: {
+  storyContainer: {
     backgroundColor: '#F6F6F6',
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
+    maxHeight: 300,
   },
-  instructionsTitle: {
+  storyTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#000',
     marginBottom: 12,
+    textTransform: 'lowercase',
   },
-  instructionsText: {
+  storyScrollView: {
+    maxHeight: 240,
+  },
+  storyText: {
     fontSize: 14,
     lineHeight: 22,
     color: '#666',
+    fontFamily: 'Nunito',
+  },
+  scrollHint: {
+    fontSize: 12,
+    color: '#8A8E8F',
+    marginTop: 8,
+    textAlign: 'center',
+    textTransform: 'lowercase',
   },
   durationContainer: {
     alignItems: 'center',
@@ -647,7 +675,7 @@ const styles = StyleSheet.create({
   playButton: {
     width: 60,
     height: 60,
-    backgroundColor: '#FFEFB4',
+    backgroundColor: '#fffc00',
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',

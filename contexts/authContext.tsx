@@ -206,10 +206,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
 
             if (profileError) {
               console.error('Profile fetch error in auth change:', profileError);
+            }
+            
+            // If profile doesn't exist yet, that's okay during signup
+            if (profileError && profileError.code === 'PGRST116') {
+              console.log('Profile does not exist yet - this is normal during signup');
             }
 
             setUser(session.user);

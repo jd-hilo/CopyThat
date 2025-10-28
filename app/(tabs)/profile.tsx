@@ -1131,18 +1131,6 @@ export default function ProfileScreen() {
           onPress={() => setShowMenu(false)}
         >
           <View style={styles.menuContent}>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                setShowMenu(false);
-                setShowVoiceCloningModal(true);
-              }}
-            >
-              <Mic size={16} color="#333A3C" style={{ marginRight: 8 }} />
-              <Typography variant="body" style={styles.menuItemText}>
-                {voiceCloneStatus === 'ready' ? 'Re-record Voice' : 'Record Voice Clone'}
-              </Typography>
-            </TouchableOpacity>
             {voiceCloneStatus === 'ready' && (
               <TouchableOpacity
                 style={styles.menuItem}
@@ -1283,7 +1271,7 @@ export default function ProfileScreen() {
               </Typography>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.successButton, { backgroundColor: '#FFEFB4', marginTop: 12 }]}
+              style={[styles.successButton, { backgroundColor: '#fffc00', marginTop: 12 }]}
               onPress={() => setShowFeatureModal(false)}
             >
               <Typography variant="body" style={[styles.successButtonText, { color: '#000' }]}>
@@ -1461,13 +1449,13 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 3,
-    borderColor: '#FFEFB4',
+    borderColor: '#fffc00',
   },
   uploadOverlay: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#FFEFB4',
+    backgroundColor: '#fffc00',
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -1694,7 +1682,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 32,
     borderWidth: 5,
-    borderColor: '#fff7d1',
+    borderColor: '#fffc00',
     paddingVertical: 8,
     paddingHorizontal: 16,
     marginBottom: 16,
@@ -1718,7 +1706,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   friendButton: {
-    backgroundColor: '#fff7d1',
+    backgroundColor: '#fffc00',
     borderRadius: 24,
     paddingVertical: 6,
     paddingHorizontal: 18,
@@ -1734,7 +1722,7 @@ const styles = StyleSheet.create({
   },
   addFriendsButton: {
     marginTop: 24,
-    backgroundColor: '#FFEFB4',
+    backgroundColor: '#fffc00',
     borderRadius: 24,
     paddingVertical: 14,
     paddingHorizontal: 36,
@@ -1951,7 +1939,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FFEFB4',
+    backgroundColor: '#fffc00',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -1995,7 +1983,7 @@ const styles = StyleSheet.create({
   },
   recordNowButton: {
     marginTop: 24,
-    backgroundColor: '#FFEFB4',
+    backgroundColor: '#fffc00',
     borderRadius: 24,
     paddingVertical: 14,
     paddingHorizontal: 36,
@@ -2082,9 +2070,9 @@ const styles = StyleSheet.create({
     textTransform: 'lowercase',
   },
   editNameSaveButton: {
-    backgroundColor: '#FFEFB4',
+    backgroundColor: '#fffc00',
     borderWidth: 1,
-    borderColor: '#FFEFB4',
+    borderColor: '#fffc00',
   },
   editNameSaveButtonText: {
     fontFamily: 'Nunito',

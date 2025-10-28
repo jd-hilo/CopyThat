@@ -515,6 +515,8 @@ export function QuickRecordingModal({
         duration: duration,
         transcription: transcription,
         reply_to: replyingTo?.reactionId || null,
+        cloned_voice_user_id: selectedVoiceUserId && selectedVoiceUserId !== (user?.id || '') ? selectedVoiceUserId : null,
+        is_voice_cloned: selectedVoiceUserId && selectedVoiceUserId !== (user?.id || '') ? true : false,
       });
 
       if (reactionError) throw reactionError;

@@ -893,7 +893,7 @@ export function StoryCard({
                   <View style={styles.reactionButtonContainer}>
                     {showGraffitiSplash && <GraffitiSplash />}
                     <Menu
-                      style={{ backgroundColor: '#FFFEDA', borderRadius: 30 }}
+                      style={{ backgroundColor: '#fffc00', borderRadius: 30 }}
                     >
                       <MenuTrigger
                         customStyles={{
@@ -1248,7 +1248,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectedEmoji: {
-    backgroundColor: '#FFFEDA',
+    backgroundColor: '#fffc00',
     borderWidth: 1,
     borderColor: '#000405',
   },
@@ -1344,7 +1344,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: -4,
     bottom: -4,
-    backgroundColor: '#FFFEDA',
+    backgroundColor: '#fffc00',
     borderRadius: 10,
     minWidth: 16,
     height: 16,
@@ -1517,7 +1517,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 8,
     gap: 6,
-    backgroundColor: '#FFFEDA',
+    backgroundColor: '#fffc00',
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1771,7 +1771,7 @@ const styles = StyleSheet.create({
     height: 40,
   },
   selectedReactionButton: {
-    backgroundColor: '#FFFEDA',
+    backgroundColor: '#fffc00',
     borderWidth: 1,
     borderColor: '#000405',
   },
@@ -1866,7 +1866,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 12,
     borderRadius: 8,
-    backgroundColor: '#FFEFB4',
+    backgroundColor: '#fffc00',
     marginTop: 16,
     width: '100%',
   },

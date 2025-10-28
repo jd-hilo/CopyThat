@@ -17,7 +17,14 @@ import { Typography, TextInput, SpinningHeadphone } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { College, COLLEGES } from '@/constants/colleges';
-import { trackAccountCreated, trackEmailEntered } from '../_layout';
+// Tracking functions disabled - keeping imports for compatibility
+const trackAccountCreated = () => {
+  console.log('Account Created tracked (disabled)');
+};
+
+const trackEmailEntered = () => {
+  console.log('Email Entered tracked (disabled)');
+};
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
@@ -806,7 +813,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   selectedCollege: {
-    backgroundColor: '#FFEFB4',
+    backgroundColor: '#fffc00',
   },
   collegeText: {
     fontSize: 16,
@@ -853,7 +860,7 @@ const styles = StyleSheet.create({
   button: {
     width: 56,
     height: 56,
-    backgroundColor: '#FFEFB4',
+    backgroundColor: '#fffc00',
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
@@ -982,7 +989,7 @@ const styles = StyleSheet.create({
     borderRadius: 75,
     marginBottom: 20,
     borderWidth: 3,
-    borderColor: '#FFEFB4',
+    borderColor: '#fffc00',
   },
   profilePicturePlaceholder: {
     width: 150,
@@ -996,7 +1003,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E5E5',
   },
   uploadButton: {
-    backgroundColor: '#FFEFB4',
+    backgroundColor: '#fffc00',
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 32,
@@ -1027,6 +1034,6 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: '#FFEFB4',
+    borderColor: '#fffc00',
   },
 });

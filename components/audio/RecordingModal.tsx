@@ -100,6 +100,16 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
       if (sound.current) {
         sound.current.unloadAsync();
       }
+      // Reset audio mode to allow full playback volume
+      Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false,
+      }).catch((err) => {
+        console.warn('Error resetting audio mode during cleanup:', err);
+      });
     };
   }, [recording]);
 
@@ -144,7 +154,19 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
     transform: [{ scale: recordingDotScale.value }],
   }));
 
-  const handleModalClose = () => {
+  const handleModalClose = async () => {
+    // Reset audio mode to restore full playback volume
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false,
+      });
+    } catch (err) {
+      console.warn('Error resetting audio mode on close:', err);
+    }
     resetModal();
     onClose();
   };
@@ -313,6 +335,19 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
           audioUri: recordingUri.current,
           duration
         });
+      }
+
+      // Reset audio mode to restore full playback volume after saving
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: false,
+          playThroughEarpieceAndroid: false,
+        });
+      } catch (err) {
+        console.warn('Error resetting audio mode on save:', err);
       }
 
       resetModal();

@@ -164,7 +164,7 @@ const NotificationItem = ({ item, onUpdate }: { item: Notification, onUpdate: ()
 const EmptyState = () => (
   <View style={styles.emptyState}>
     <Typography variant="h2" style={styles.emptyStateTitle}>
-      No notifications yet
+      no notifications yet
     </Typography>
     <Typography variant="body" style={styles.emptyStateText}>
       When someone reacts to your stories or sends you a friend request, you'll see them here!
@@ -384,14 +384,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   header: {
-    backgroundColor: '#FFEFB4',
+    backgroundColor: '#FFFFFF',
     borderBottomLeftRadius: 36,
     borderBottomRightRadius: 36,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 12,
+    marginTop: -40,
     marginBottom: 8,
   },
   headerTitle: {
@@ -462,21 +464,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 40,
     backgroundColor: '#FFFFFF',
+    minHeight: 300,
   },
   emptyStateTitle: {
-    fontSize: 20,
-    fontFamily: 'Nunito',
+    fontSize: 24,
     fontWeight: '700',
-    color: '#333A3C',
+    color: '#000000',
+    fontFamily: 'Nunito-Bold',
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyStateText: {
     fontSize: 16,
-    fontFamily: 'Nunito',
+    fontWeight: '600',
     color: '#8A8E8F',
+    fontFamily: 'Nunito-SemiBold',
+    marginBottom: 24,
     textAlign: 'center',
-    lineHeight: 24,
   },
   retryButton: {
     marginTop: 16,
