@@ -26,7 +26,8 @@
         "NSPhotoLibraryUsageDescription": "Copy That needs gallery permission to pick and upload your profile picture.",
         "NSUserTrackingUsageDescription": "We need tracking permission to get analytics to improve the user experience."
       },
-      "appleTeamId": "N8SACG5845"
+      "appleTeamId": "N8SACG5845",
+      "appStoreUrl": "https://apps.apple.com/us/app/6754433214"
     },
     "web": {
       "bundler": "metro",
@@ -37,7 +38,7 @@
       "expo-router",
       "expo-secure-store",
       "expo-tracking-transparency",
-      "expo-font", 
+      "expo-font",
       [
         "expo-image-picker",
         {

@@ -24,7 +24,7 @@ import { formatDuration } from '@/utils/timeUtils';
 import { X, Mic, Play, Pause, Check } from 'lucide-react-native';
 import { createVoiceClone } from '@/lib/elevenLabs';
 import { supabase } from '@/lib/supabase';
-
+import * as StoreReview from 'expo-store-review';
 interface VoiceCloningModalProps {
   visible: boolean;
   onClose: () => void;
@@ -102,7 +102,7 @@ export function VoiceCloningModal({
   const [duration, setDuration] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordingComplete, setRecordingComplete] = useState(false);
-  
+
   const recording = useRef<Audio.Recording | null>(null);
   const recordingUri = useRef<string | null>(null);
   const sound = useRef<Audio.Sound | null>(null);
@@ -112,7 +112,9 @@ export function VoiceCloningModal({
   // Minimum 30 seconds, maximum 60 seconds
   const MIN_DURATION = 30;
   const MAX_DURATION = 60;
-
+  async function maybeAskForReview() {
+    StoreReview.requestReview();
+  }
   useEffect(() => {
     return () => {
       // Cleanup on unmount
@@ -197,12 +199,12 @@ export function VoiceCloningModal({
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
       await newRecording.startAsync();
-      
+
       recording.current = newRecording;
       setIsRecording(true);
       setDuration(0);
       setRecordingComplete(false);
-      
+
       pulseOpacity.value = withRepeat(
         withTiming(0.3, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
         -1,
@@ -228,7 +230,7 @@ export function VoiceCloningModal({
 
       await recording.current.stopAndUnloadAsync();
       const uri = recording.current.getURI();
-      
+
       if (!uri) {
         throw new Error('Failed to get recording URI');
       }
@@ -337,6 +339,7 @@ export function VoiceCloningModal({
             onPress: () => {
               onSuccess(result.voiceId!);
               handleClose();
+              maybeAskForReview();
             },
           },
         ]
@@ -345,7 +348,9 @@ export function VoiceCloningModal({
       console.error('Error submitting voice clone:', error);
       Alert.alert(
         'Error',
-        error instanceof Error ? error.message : 'Failed to create voice clone. Please try again.'
+        error instanceof Error
+          ? error.message
+          : 'Failed to create voice clone. Please try again.'
       );
     } finally {
       setIsProcessing(false);
@@ -395,24 +400,24 @@ export function VoiceCloningModal({
             <Typography variant="h3" style={styles.storyTitle}>
               Record 30-60 seconds of you reading the story
             </Typography>
-            <ScrollView 
+            <ScrollView
               style={styles.storyScrollView}
               showsVerticalScrollIndicator={true}
             >
               <Typography variant="body" style={styles.storyText}>
                 {'In a small town nestled between rolling hills, there lived an old librarian named Margaret. She had spent her entire life surrounded by books, each one holding stories of adventures, love, dreams, and the vast tapestry of human experience.\n\n' +
-                'Every morning, Margaret would arrive at the library before dawn, her key making a familiar click in the ancient lock. The building itself was a character in the story of the town - its walls had absorbed decades of whispered conversations, of children learning to read, of teenagers discovering first loves, and of elderly patrons seeking companionship in the pages of favorite novels.\n\n' +
-                'The library was not just a building; it was a sanctuary. On rainy afternoons, students would huddle at tables by the window, their textbooks spread open as they chased understanding. Lovers would browse poetry collections together, fingers brushing against each other as they turned pages. Children would gather in the corner, their imaginations set free by picture books and fairy tales.\n\n' +
-                'Margaret knew every book on every shelf. She could tell you which novel had been checked out the most times, which classics were gathering dust, and which new releases had caused a waiting list. Her knowledge wasn\'t limited to book titles - she understood the reading habits of her community, knowing which genres brought joy to which patrons.\n\n' +
-                'One particular afternoon, a young woman named Sarah entered the library looking lost. Her eyes scanned the shelves uncertainly, her shoulders tense with the weight of some unseen burden. Margaret approached quietly, not wanting to startle her, and offered a gentle smile.\n\n' +
-                '"Looking for something specific?" Margaret asked, her voice as warm as afternoon sunlight filtering through the window.\n\n' +
-                'Sarah hesitated, then said, "I need to escape for a while. Just... forget the world exists outside these walls."\n\n' +
-                'Margaret understood that need well. She led Sarah to a corner she had found over the years to be particularly comforting - a space with oversized chairs, soft lighting, and books that spoke to the weary soul. She pulled out a novel about a woman discovering strength she didn\'t know she had.\n\n' +
-                '"Try this," Margaret said softly. "Sometimes we need to see ourselves reflected in someone else\'s journey to remember who we are."\n\n' +
-                'Sarah took the book gratefully, settling into one of the comfortable chairs. As she opened the pages, Margaret slipped away, knowing that the quiet act of reading would work its healing magic.\n\n' +
-                'Hours later, when the library was preparing to close, Sarah approached the desk with the book in hand, her eyes clear and shoulders relaxed.\n\n' +
-                '"Thank you," Sarah said, her gratitude evident in her voice. "You knew exactly what I needed."\n\n' +
-                'Margaret smiled, satisfied in the knowledge that once again, the library had fulfilled its purpose - not just as a collection of books, but as a place where people found themselves again.'}
+                  'Every morning, Margaret would arrive at the library before dawn, her key making a familiar click in the ancient lock. The building itself was a character in the story of the town - its walls had absorbed decades of whispered conversations, of children learning to read, of teenagers discovering first loves, and of elderly patrons seeking companionship in the pages of favorite novels.\n\n' +
+                  'The library was not just a building; it was a sanctuary. On rainy afternoons, students would huddle at tables by the window, their textbooks spread open as they chased understanding. Lovers would browse poetry collections together, fingers brushing against each other as they turned pages. Children would gather in the corner, their imaginations set free by picture books and fairy tales.\n\n' +
+                  "Margaret knew every book on every shelf. She could tell you which novel had been checked out the most times, which classics were gathering dust, and which new releases had caused a waiting list. Her knowledge wasn't limited to book titles - she understood the reading habits of her community, knowing which genres brought joy to which patrons.\n\n" +
+                  'One particular afternoon, a young woman named Sarah entered the library looking lost. Her eyes scanned the shelves uncertainly, her shoulders tense with the weight of some unseen burden. Margaret approached quietly, not wanting to startle her, and offered a gentle smile.\n\n' +
+                  '"Looking for something specific?" Margaret asked, her voice as warm as afternoon sunlight filtering through the window.\n\n' +
+                  'Sarah hesitated, then said, "I need to escape for a while. Just... forget the world exists outside these walls."\n\n' +
+                  "Margaret understood that need well. She led Sarah to a corner she had found over the years to be particularly comforting - a space with oversized chairs, soft lighting, and books that spoke to the weary soul. She pulled out a novel about a woman discovering strength she didn't know she had.\n\n" +
+                  '"Try this," Margaret said softly. "Sometimes we need to see ourselves reflected in someone else\'s journey to remember who we are."\n\n' +
+                  'Sarah took the book gratefully, settling into one of the comfortable chairs. As she opened the pages, Margaret slipped away, knowing that the quiet act of reading would work its healing magic.\n\n' +
+                  'Hours later, when the library was preparing to close, Sarah approached the desk with the book in hand, her eyes clear and shoulders relaxed.\n\n' +
+                  '"Thank you," Sarah said, her gratitude evident in her voice. "You knew exactly what I needed."\n\n' +
+                  'Margaret smiled, satisfied in the knowledge that once again, the library had fulfilled its purpose - not just as a collection of books, but as a place where people found themselves again.'}
               </Typography>
             </ScrollView>
             <Typography variant="bodySmall" style={styles.scrollHint}>
@@ -459,7 +464,9 @@ export function VoiceCloningModal({
               >
                 <Animated.View style={[styles.pulse, pulseStyle]} />
                 {isRecording && (
-                  <Animated.View style={[styles.recordingDot, recordingDotStyle]} />
+                  <Animated.View
+                    style={[styles.recordingDot, recordingDotStyle]}
+                  />
                 )}
                 <Mic size={28} color="#FFFFFF" />
               </TouchableOpacity>
@@ -711,4 +718,3 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
-

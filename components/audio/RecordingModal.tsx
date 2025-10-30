@@ -1,18 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert, Platform, ActivityIndicator, TextInput } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  Alert,
+  Platform,
+  ActivityIndicator,
+  TextInput,
+} from 'react-native';
 import { Mic, X, Pause, Play } from 'lucide-react-native';
 import { Typography } from '@/components/ui/Typography';
 import { theme } from '@/constants/theme';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { supabase } from '@/lib/supabase';
-import { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, withDelay, Easing } from 'react-native-reanimated';
+import {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withSequence,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
 import { formatDuration } from '@/utils/timeUtils';
 import Animated from 'react-native-reanimated';
 import { createStory } from '@/lib/stories';
 import { createFeedback } from '@/lib/feedback';
 import { CategorySelector } from '@/components/audio/CategorySelector';
-
+import * as StoreReview from 'expo-store-review';
 interface RecordingModalProps {
   isVisible: boolean;
   onClose: () => void;
@@ -20,9 +38,22 @@ interface RecordingModalProps {
   mode?: 'story' | 'feedback';
 }
 
-const WaveBar = ({ index, isRecording }: { index: number; isRecording: boolean }) => {
+const WaveBar = ({
+  index,
+  isRecording,
+}: {
+  index: number;
+  isRecording: boolean;
+}) => {
   const height = useSharedValue(12 + Math.random() * 20);
-  const colors = ["#FFD700", "#FFA500", "#00FF6E", "#FD8CFF", "#FF006F", "#FFFB00"];
+  const colors = [
+    '#FFD700',
+    '#FFA500',
+    '#00FF6E',
+    '#FD8CFF',
+    '#FF006F',
+    '#FFFB00',
+  ];
   const color = colors[index % colors.length];
   const delay = index * 100;
 
@@ -55,7 +86,12 @@ const WaveBar = ({ index, isRecording }: { index: number; isRecording: boolean }
   return <Animated.View style={animatedStyle} />;
 };
 
-export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: RecordingModalProps) {
+export function RecordingModal({
+  isVisible,
+  onClose,
+  onSave,
+  mode = 'story',
+}: RecordingModalProps) {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -63,9 +99,22 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
   const [duration, setDuration] = useState(0);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<'Personal' | 'Music' | 'News' | 'Comedy' | 'Education' | 'Stories' | 'Business' | 'Technology' | 'Health' | 'Entertainment' | 'Sports' | 'Other'>('Personal');
+  const [category, setCategory] = useState<
+    | 'Personal'
+    | 'Music'
+    | 'News'
+    | 'Comedy'
+    | 'Education'
+    | 'Stories'
+    | 'Business'
+    | 'Technology'
+    | 'Health'
+    | 'Entertainment'
+    | 'Sports'
+    | 'Other'
+  >('Personal');
   const [isSaving, setIsSaving] = useState(false);
-  
+
   const recordingUri = useRef<string | null>(null);
   const sound = useRef<Audio.Sound | null>(null);
   const pulseOpacity = useSharedValue(0);
@@ -91,6 +140,9 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
     recordingDotScale.value = withTiming(1);
     finalDuration.current = 0;
   };
+  async function maybeAskForReview() {
+    StoreReview.requestReview();
+  }
 
   useEffect(() => {
     return () => {
@@ -138,7 +190,7 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
   useEffect(() => {
     if (isRecording) {
       const interval = setInterval(() => {
-        setDuration(prev => {
+        setDuration((prev) => {
           if (prev + 1 >= 120) {
             stopRecording();
             return 120;
@@ -262,14 +314,14 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
 
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: recordingUri.current },
-        { 
+        {
           progressUpdateIntervalMillis: 1000,
           shouldPlay: true,
           volume: 1.0,
           rate: 1.0,
           isMuted: false,
           isLooping: false,
-          shouldCorrectPitch: true
+          shouldCorrectPitch: true,
         }
       );
 
@@ -279,7 +331,7 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
 
       newSound.setOnPlaybackStatusUpdate((status) => {
         if (!status.isLoaded) return;
-        
+
         if (status.didJustFinish) {
           setIsPlaying(false);
           sound.current?.unloadAsync();
@@ -319,21 +371,23 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
 
     try {
       setIsSaving(true);
-      
-      const { data: { user } } = await supabase.auth.getUser();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
-      
+
       if (mode === 'story') {
         await createStory(recordingUri.current, user.id, {
           title: title.trim(),
           description: description.trim(),
           category,
-          duration
+          duration,
         });
       } else {
         await createFeedback({
           audioUri: recordingUri.current,
-          duration
+          duration,
         });
       }
 
@@ -353,6 +407,7 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
       resetModal();
       onSave();
       onClose();
+      maybeAskForReview();
     } catch (error) {
       console.error('Failed to save:', error);
       Alert.alert('Error', 'Failed to save. Please try again.');
@@ -377,7 +432,10 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
       <View style={styles.modalOverlay}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={handleModalClose} style={styles.closeButton}>
+            <TouchableOpacity
+              onPress={handleModalClose}
+              style={styles.closeButton}
+            >
               <X size={24} color={theme.colors.text.primary} />
             </TouchableOpacity>
           </View>
@@ -388,7 +446,7 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
                 <Typography variant="h2" style={styles.title}>
                   {mode === 'story' ? 'create a story' : 'leave your feedback'}
                 </Typography>
-                
+
                 <View style={styles.waveformContainer}>
                   <View style={styles.audioWaveform}>
                     {[...Array(20)].map((_, i) => (
@@ -399,7 +457,10 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
 
                 <View style={styles.recordingControlsRow}>
                   <View style={styles.recordingInfo}>
-                    <Typography variant="bodySmall" style={styles.maxDurationLabel}>
+                    <Typography
+                      variant="bodySmall"
+                      style={styles.maxDurationLabel}
+                    >
                       Max 2 minutes
                     </Typography>
                     <Typography variant="body" style={styles.timer}>
@@ -407,7 +468,10 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
                     </Typography>
                   </View>
                   <TouchableOpacity
-                    style={[styles.recordButton, isRecording && styles.recordingButton]}
+                    style={[
+                      styles.recordButton,
+                      isRecording && styles.recordingButton,
+                    ]}
                     onPress={isRecording ? stopRecording : startRecording}
                   >
                     <Animated.View style={[styles.pulse, pulseStyle]} />
@@ -424,7 +488,7 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
                 <Typography variant="h2" style={styles.title}>
                   {mode === 'story' ? 'create a story' : 'leave your feedback'}
                 </Typography>
-                
+
                 <View style={styles.waveformContainer}>
                   <View style={styles.audioWaveform}>
                     {[...Array(20)].map((_, i) => (
@@ -466,7 +530,10 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
                         onChangeText={setDescription}
                         multiline
                       />
-                      <CategorySelector selectedCategory={category} onSelectCategory={setCategory} />
+                      <CategorySelector
+                        selectedCategory={category}
+                        onSelectCategory={setCategory}
+                      />
                     </>
                   )}
                 </View>
@@ -482,12 +549,19 @@ export function RecordingModal({ isVisible, onClose, onSave, mode = 'story' }: R
                     </Typography>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.submitButton, isSaving && styles.submitButtonDisabled]}
+                    style={[
+                      styles.submitButton,
+                      isSaving && styles.submitButtonDisabled,
+                    ]}
                     onPress={handleSave}
                     disabled={isSaving || (mode === 'story' && !title.trim())}
                   >
                     <Typography variant="body" style={styles.submitText}>
-                      {isSaving ? 'saving...' : (mode === 'story' ? 'save story' : 'submit feedback')}
+                      {isSaving
+                        ? 'saving...'
+                        : mode === 'story'
+                        ? 'save story'
+                        : 'submit feedback'}
                     </Typography>
                   </TouchableOpacity>
                 </View>

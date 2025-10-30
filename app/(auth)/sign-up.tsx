@@ -17,6 +17,7 @@ import { Typography, TextInput, SpinningHeadphone } from '@/components/ui';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { College, COLLEGES } from '@/constants/colleges';
+
 // Tracking functions disabled - keeping imports for compatibility
 const trackAccountCreated = () => {
   console.log('Account Created tracked (disabled)');
@@ -46,7 +47,8 @@ export default function SignUpScreen() {
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
     null
   );
-  const { id } = useLocalSearchParams(); 
+  const [signType, setSignType] = useState<'apple' | 'email'>('email');
+  const { id } = useLocalSearchParams();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const validateEmail = (email: string) => {
@@ -139,7 +141,7 @@ export default function SignUpScreen() {
     console.log('=== handleNext START ===');
     console.log('Current step:', currentStep);
     console.log('Form data:', formData);
-    
+
     const error = validateStep(currentStep);
     if (error) {
       console.log('Validation error:', error);
@@ -162,7 +164,9 @@ export default function SignUpScreen() {
         });
 
         if (!signInError && user) {
-          console.log('User exists and signed in successfully, routing to tabs');
+          console.log(
+            'User exists and signed in successfully, routing to tabs'
+          );
           // Small delay to ensure session state is updated
           await new Promise((resolve) => setTimeout(resolve, 300));
           router.replace('/(tabs)');
@@ -172,7 +176,7 @@ export default function SignUpScreen() {
         // Ignore and proceed to signup flow
         console.log('Password sign-in attempt failed, proceeding to signup');
       }
-      
+
       // If sign-in didn't succeed, proceed to firstname (new account flow)
       setLoading(false);
       animateTransition('next');
@@ -221,8 +225,9 @@ export default function SignUpScreen() {
 
   const handleUploadImage = async () => {
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
       if (!permissionResult.granted) {
         setError('Please allow access to your photo library');
         return;
@@ -285,25 +290,30 @@ export default function SignUpScreen() {
           setLoading(false);
           return;
         }
-        
+
         // Handle user already exists - try to sign in instead
-        if (signUpError.message.includes('already registered') || 
-            signUpError.message.includes('already exists') ||
-            signUpError.message.includes('User already registered')) {
+        if (
+          signUpError.message.includes('already registered') ||
+          signUpError.message.includes('already exists') ||
+          signUpError.message.includes('User already registered')
+        ) {
           console.log('User already exists, attempting sign in...');
-          
+
           // Try to sign in with the provided password
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email: formData.email.toLowerCase(),
-            password: formData.password,
-          });
-          
+          const { data: signInData, error: signInError } =
+            await supabase.auth.signInWithPassword({
+              email: formData.email.toLowerCase(),
+              password: formData.password,
+            });
+
           if (signInError) {
-            setError('This email is already registered. Please use the sign in page or reset your password.');
+            setError(
+              'This email is already registered. Please use the sign in page or reset your password.'
+            );
             setLoading(false);
             return;
           }
-          
+
           // Sign in successful, check if user has completed profile
           if (signInData.user) {
             const { data: profile } = await supabase
@@ -311,20 +321,22 @@ export default function SignUpScreen() {
               .select('*')
               .eq('id', signInData.user.id)
               .single();
-            
+
             if (profile && profile.username) {
               // Profile exists, go to tabs
               router.replace({ pathname: '/(tabs)', params: { id: id } });
             } else {
               // No profile, continue with profile creation
               // Won't work because user already has an account
-              setError('Please use the sign in page to access your existing account.');
+              setError(
+                'Please use the sign in page to access your existing account.'
+              );
             }
             setLoading(false);
             return;
           }
         }
-        
+
         throw signUpError;
       }
 
@@ -339,18 +351,21 @@ export default function SignUpScreen() {
       // Show message but allow them to check their email
       if (!data.session) {
         console.log('Email confirmation required');
-        setError('Account created! Please check your email and click the confirmation link to continue.');
+        setError(
+          'Account created! Please check your email and click the confirmation link to continue.'
+        );
         setLoading(false);
         return;
       }
 
       // Session exists, proceed with profile setup
-      let avatarUrl = 'https://dqthkfmvvedzyowhyeyd.supabase.co/storage/v1/object/public/avatars/default.png';
-      
+      let avatarUrl =
+        'https://dqthkfmvvedzyowhyeyd.supabase.co/storage/v1/object/public/avatars/default.png';
+
       if (formData.avatarUrl && selectedImage) {
         console.log('Uploading profile picture...');
         const fileName = `${data.user.id}/${Date.now()}.jpg`;
-        
+
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(fileName, decode(formData.avatarUrl), {
@@ -361,9 +376,9 @@ export default function SignUpScreen() {
         if (uploadError) {
           console.error('Upload error:', uploadError);
         } else {
-          const { data: { publicUrl } } = supabase.storage
-            .from('avatars')
-            .getPublicUrl(fileName);
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from('avatars').getPublicUrl(fileName);
           avatarUrl = publicUrl;
           console.log('Profile picture uploaded:', avatarUrl);
         }
@@ -378,14 +393,89 @@ export default function SignUpScreen() {
       console.log('=== handleSubmit END ===');
     } catch (err) {
       console.error('handleSubmit catch error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred during sign up');
+      setError(
+        err instanceof Error ? err.message : 'An error occurred during sign up'
+      );
+    } finally {
+      setLoading(false);
+      console.log('handleSubmit loading set to false');
+    }
+  };
+  const handleSubmitApple = async () => {
+    try {
+      console.log('=== handleSubmit START ===');
+      console.log('Form data:', formData);
+      console.log('Loading state:', loading);
+
+      setError(null);
+      setLoading(true);
+
+      // Sign up with email and password (auto-confirm to skip email verification)
+      const { data, error: signUpError } = await supabase.auth.getSession();
+
+      console.log('User account created successfully:', data.session?.user);
+      console.log('Session from signup:', data.session);
+
+      if (!data.session?.user) {
+        throw new Error('No user returned from sign up');
+      }
+
+      // If no session, email confirmation is required
+      // Show message but allow them to check their email
+      if (!data.session) {
+        console.log('Email confirmation required');
+        setError(
+          'Account created! Please check your email and click the confirmation link to continue.'
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Session exists, proceed with profile setup
+      let avatarUrl =
+        'https://dqthkfmvvedzyowhyeyd.supabase.co/storage/v1/object/public/avatars/default.png';
+
+      if (formData.avatarUrl && selectedImage) {
+        console.log('Uploading profile picture...');
+        const fileName = `${data.session.user.id}/${Date.now()}.jpg`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, decode(formData.avatarUrl), {
+            contentType: 'image/jpeg',
+            upsert: true,
+          });
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+        } else {
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from('avatars').getPublicUrl(fileName);
+          avatarUrl = publicUrl;
+          console.log('Profile picture uploaded:', avatarUrl);
+        }
+      }
+
+      // Create user profile
+      await createUserProfile(data.session.user.id, avatarUrl);
+
+      // Redirect to onboarding flow
+      console.log('Redirecting to onboarding flow...');
+      router.push('/onboarding-mic');
+      console.log('=== handleSubmit END ===');
+    } catch (err) {
+      console.error('handleSubmit catch error:', err);
+      setError(
+        err instanceof Error ? err.message : 'An error occurred during sign up'
+      );
     } finally {
       setLoading(false);
       console.log('handleSubmit loading set to false');
     }
   };
 
-  const createUserProfile = async (userId: string, avatarUrl: string) => { 
+  const createUserProfile = async (userId: string, avatarUrl: string) => {
     const { data: existingProfile, error: existingProfileError } =
       await supabase.from('profiles').select('*').eq('id', userId).single();
 
@@ -420,13 +510,14 @@ export default function SignUpScreen() {
 
   const appSignIn = async () => {
     try {
+      setSignType('apple');
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-      
+
       if (credential.identityToken) {
         const {
           error,
@@ -434,8 +525,8 @@ export default function SignUpScreen() {
         } = await supabase.auth.signInWithIdToken({
           provider: 'apple',
           token: credential.identityToken,
-        }); 
-        
+        });
+
         if (!error) {
           if (user) {
             const { data: profile, error: profileError } = await supabase
@@ -443,9 +534,9 @@ export default function SignUpScreen() {
               .select('*')
               .eq('id', user.id)
               .single();
-            
+
             console.log('profile and profile Error :', profile, profileError);
-            
+
             if (!profileError && profile) {
               router.replace({ pathname: '/(tabs)', params: { id: id } });
             } else {
@@ -549,7 +640,10 @@ export default function SignUpScreen() {
                   </View>
                 )}
                 {usernameAvailable === true && (
-                  <Typography variant="bodyBold" style={styles.availabilityText}>
+                  <Typography
+                    variant="bodyBold"
+                    style={styles.availabilityText}
+                  >
                     name available
                   </Typography>
                 )}
@@ -588,7 +682,10 @@ export default function SignUpScreen() {
                   style={styles.uploadButton}
                   onPress={handleUploadImage}
                 >
-                  <Typography variant="bodyBold" style={styles.uploadButtonText}>
+                  <Typography
+                    variant="bodyBold"
+                    style={styles.uploadButtonText}
+                  >
                     {selectedImage ? 'change photo' : 'choose photo'}
                   </Typography>
                 </TouchableOpacity>
@@ -694,7 +791,9 @@ export default function SignUpScreen() {
             ]}
             onPress={
               currentStep === 'review'
-                ? handleSubmit
+                ? signType === 'apple'
+                  ? handleSubmitApple
+                  : handleSubmit
                 : currentStep === 'profilepicture'
                 ? handleNext
                 : handleNext
