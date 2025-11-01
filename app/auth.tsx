@@ -135,12 +135,26 @@ export default function WelcomeScreen() {
               <TouchableOpacity
                 onPress={() => {
                   router.push(
-                    'https://pastoral-supply-662.notion.site/Terms-of-Service-Hear-Me-Out-1eb2cec59ddf804186a0dbb600cd822a?source=copy_link'
+                    'https://pastoral-supply-662.notion.site/Terms-of-Service-CopyThat-29e2cec59ddf80a5886afaba3b8a42b2?source=copy_link'
                   );
                 }}
               >
                 <Typography variant="body" style={styles.termsLink}>
                   terms
+                </Typography>
+              </TouchableOpacity>
+              <Typography variant="body" style={styles.termsText}>
+                {' '}and{' '}
+              </Typography>
+              <TouchableOpacity
+                onPress={() => {
+                  router.push(
+                    'https://pastoral-supply-662.notion.site/Privacy-Policy-CopyThat-29e2cec59ddf80e59e1cc812cf9772ed?source=copy_link'
+                  );
+                }}
+              >
+                <Typography variant="body" style={styles.termsLink}>
+                  privacy policy
                 </Typography>
               </TouchableOpacity>
             </View>
@@ -210,7 +224,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   activeDot: {
-    backgroundColor: '#FFE8BA',
+    backgroundColor: '#FFFEDA',
     width: 10,
     height: 10,
   },

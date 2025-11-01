@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#FFE8BA',
+    backgroundColor: '#FFFEDA',
     borderWidth: 0.928572,
     borderColor: '#FFFFFF',
     alignItems: 'center',
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   selectedOption: {
     backgroundColor: '#FFFEDA',
     borderWidth: 1,
-    borderColor: '#FFE8BA',
+    borderColor: '#FFFEDA',
   },
   optionIcon: {
     width: 24,

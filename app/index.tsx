@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     flex: 'none',
   },
   activeDot: {
-    backgroundColor: '#FFE8BA',
+    backgroundColor: '#FFFEDA',
     width: 10,
     height: 10,
   },

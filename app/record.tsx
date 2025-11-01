@@ -1584,7 +1584,7 @@ export default function RecordScreen({ initialGroupId }: { initialGroupId?: stri
                 <View style={styles.infoIconDot} />
               </View>
               <Typography variant="body" style={styles.infoButtonText}>
-                What should i talk about?
+                how does this work?
               </Typography>
             </TouchableOpacity>
             <Typography variant="h2" style={styles.headline}>
@@ -1702,7 +1702,7 @@ export default function RecordScreen({ initialGroupId }: { initialGroupId?: stri
                 variant="h2"
                 style={[styles.modalTitle, { fontSize: 20 }]}
               >
-                What should I talk about?
+                how does this work?
               </Typography>
               <TouchableOpacity
                 style={[styles.closeButton, { width: 32, height: 32 }]}
@@ -1713,12 +1713,9 @@ export default function RecordScreen({ initialGroupId }: { initialGroupId?: stri
             </View>
             <ScrollView style={styles.infoContent}>
               <Typography variant="body" style={styles.infoText}>
-                {'😂  Share a funny story that happened today\n\n'}
-                {'🎓  Talk about something you learned recently\n\n'}
-                {'🌍  Share your thoughts on a current event\n\n'}
-                {'💡  Give advice about something you are good at\n\n'}
-                {'✨  Share a memory that makes you happy\n\n'}
-                {'🎯  Talk about your goals and dreams'}
+                {
+                  'Hit record, say anything, and when you finish you can remix it by cloning a voice from someone in your group. Your story, their sound—instant magic.'
+                }
               </Typography>
             </ScrollView>
           </View>
@@ -2484,17 +2481,25 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
   infoButton: {
-    backgroundColor: '#FAF2E0',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 25,
-    width: 240,
-    height: 32,
+    backgroundColor: '#FFFEDA',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 28,
+    minWidth: 240,
+    height: 42,
     alignSelf: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
   },
   infoButtonAboveHeadline: {
     marginBottom: 0,
@@ -2522,7 +2527,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     justifyContent: 'center',
-    backgroundColor: '#FFE8BA',
+    backgroundColor: '#FFFEDA',
     borderWidth: 0.928572,
     borderColor: '#FFFFFF',
     borderRadius: 16,
@@ -2622,13 +2627,13 @@ const styles = StyleSheet.create({
     height: 4.67,
   },
   infoButtonText: {
-    color: '#9B5602',
-    fontSize: 13,
-    fontWeight: '600',
-    fontFamily: 'Nunito-Regular',
-    lineHeight: 18,
-    flex: 1,
+    color: '#000405',
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: 'Nunito-SemiBold',
+    lineHeight: 20,
     textAlign: 'center',
+    textTransform: 'lowercase',
   },
   infoContent: {
     paddingHorizontal: 24,
