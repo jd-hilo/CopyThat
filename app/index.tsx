@@ -48,7 +48,9 @@ export default function WelcomeScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [showRefreshButton, setShowRefreshButton] = useState(false);
   const { user, userProfile, setUserProfile, setUser } = useAuth();
+  
   // Handle scroll to update current slide indicator
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
@@ -57,6 +59,13 @@ export default function WelcomeScreen() {
   };
 
   useEffect(() => {
+    // Show refresh button after 3 seconds of loading
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        setShowRefreshButton(true);
+      }
+    }, 3000);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         // Fetch the user's profile
@@ -87,6 +96,7 @@ export default function WelcomeScreen() {
     } = supabase.auth.onAuthStateChange(() => {});
 
     return () => {
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);
@@ -101,10 +111,27 @@ export default function WelcomeScreen() {
     router.push('/(auth)/sign-up');
   };
 
+  const handleRefresh = () => {
+    setShowRefreshButton(false);
+    setIsLoading(true);
+    // Force a page reload by navigating to the same route
+    router.replace('/');
+  };
+
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={styles.loadingContainer}>
         <SpinningHeadphone size={32} />
+        {showRefreshButton && (
+          <TouchableOpacity 
+            style={styles.refreshButton} 
+            onPress={handleRefresh}
+          >
+            <Typography variant="body" style={styles.refreshButtonText}>
+              having issues? refresh
+            </Typography>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -113,7 +140,8 @@ export default function WelcomeScreen() {
     return <Redirect href={'/(tabs)'} />;
   }
 
-  return <Redirect href={'/auth'} />;
+  // Redirect to the auth group initial route instead of a non-existent "/auth" path
+  return <Redirect href={'/(auth)'} />;
 }
 
 const styles = StyleSheet.create({
@@ -292,5 +320,34 @@ const styles = StyleSheet.create({
     color: '#FFA500',
     fontWeight: 'bold',
     textDecorationLine: 'underline',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    gap: 24,
+  },
+  refreshButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#FAF2E0',
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  refreshButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#9B5602',
+    fontFamily: 'Nunito-SemiBold',
+    textTransform: 'lowercase',
   },
 });

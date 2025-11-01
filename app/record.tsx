@@ -44,6 +44,8 @@ import { posthog } from '@/posthog';
 import { useAuth } from '@/contexts/authContext';
 import { VoiceSelector } from '@/components/audio/VoiceSelector';
 import { voiceChanger } from '@/lib/elevenLabs';
+import * as StoreReview from 'expo-store-review';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width } = Dimensions.get('window');
 
 const WaveBar = ({
@@ -1516,6 +1518,26 @@ export default function RecordScreen({ initialGroupId }: { initialGroupId?: stri
         setCurrentStoryIsFriendsOnly(
           userCollege === 'None of the Above' ? true : isPrivate
         );
+        // Prompt for rating after the user's second successful post
+        try {
+          const userId = user?.id;
+          if (userId) {
+            const key = `post_count:${userId}`;
+            const current = await AsyncStorage.getItem(key);
+            const count = current ? parseInt(current, 10) || 0 : 0;
+            const nextCount = count + 1;
+            await AsyncStorage.setItem(key, String(nextCount));
+            if (nextCount === 2) {
+              const isAvailable = await StoreReview.hasAction();
+              if (isAvailable) {
+                // Fire and forget; do not block navigation
+                StoreReview.requestReview();
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Rating prompt error:', e);
+        }
         
         // Route directly to home page
         router.replace('/(tabs)');
